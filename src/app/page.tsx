@@ -1,7 +1,6 @@
 "use client";
 
 import { useUser } from "@/firebase/auth/use-user";
-import { Login } from "@/components/login";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { VoiceChat } from "@/components/voice-chat"
 import { CallHistory } from "@/components/call-history"
@@ -12,16 +11,12 @@ import { Footer } from "@/components/footer"
 export default function Home() {
   const { user, loading } = useUser();
 
-  if (loading) {
+  if (loading || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="w-16 h-16 animate-spin text-primary" />
       </div>
     );
-  }
-
-  if (!user) {
-    return <Login />;
   }
 
   return (

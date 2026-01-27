@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { onAuthStateChanged, type User } from "firebase/auth";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { onAuthStateChanged, signInAnonymously, type User } from "firebase/auth";
+import { doc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import { useAuth, useFirestore } from "@/firebase";
+import { generateRandomUser } from "@/lib/data";
 
 interface AppUser extends User {
-    // Add any custom user properties here
     name?: string;
     avatar?: string;
     online?: boolean;
@@ -20,43 +20,59 @@ export function useUser() {
 
   useEffect(() => {
     if (!auth || !firestore) {
-      if(!auth) console.log("Auth is not available");
-      if(!firestore) console.log("Firestore is not available");
-      setLoading(false);
       return;
+    }
+
+    const handleBeforeUnload = () => {
+      if (auth.currentUser) {
+        const userRef = doc(firestore, "users", auth.currentUser.uid);
+        setDoc(userRef, { online: false }, { merge: true });
+      }
     };
-    
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         const userRef = doc(firestore, "users", firebaseUser.uid);
+        
+        setDoc(userRef, { online: true }, { merge: true });
 
-        // Set user online status
-        await setDoc(userRef, { online: true }, { merge: true });
-
-        const unsubSnapshot = onSnapshot(userRef, (doc) => {
-            if (doc.exists()) {
-              setUser({ ...firebaseUser, ...doc.data() });
+        const unsubSnapshot = onSnapshot(userRef, (docSnapshot) => {
+            if (docSnapshot.exists()) {
+              setUser({ ...firebaseUser, ...docSnapshot.data() });
+              setLoading(false);
             } else {
-              // Handle case where user document doesn't exist yet
-               setUser(firebaseUser);
+              // User is authenticated but no profile in Firestore, create one.
+              const randomUser = generateRandomUser();
+              const userProfile = {
+                id: firebaseUser.uid,
+                name: randomUser.name,
+                avatar: randomUser.avatar,
+                online: true,
+                createdAt: serverTimestamp(),
+              };
+              setDoc(userRef, userProfile);
             }
-            setLoading(false);
         });
 
-        // Set user offline on disconnect
-        const onlineStatusRef = doc(firestore, "users", firebaseUser.uid);
-        window.addEventListener("beforeunload", async () => {
-             await setDoc(onlineStatusRef, { online: false }, { merge: true });
-        });
+        window.addEventListener("beforeunload", handleBeforeUnload);
 
-        return () => unsubSnapshot();
+        return () => {
+            unsubSnapshot();
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+        }
       } else {
-        setUser(null);
-        setLoading(false);
+        // No user is signed in. Let's sign them in anonymously.
+        signInAnonymously(auth).catch((error) => {
+          console.error("Anonymous sign-in error:", error);
+          setLoading(false);
+        });
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+        unsubscribe();
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
   }, [auth, firestore]);
 
   return { user, loading };
