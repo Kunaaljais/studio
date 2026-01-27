@@ -213,11 +213,11 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             calleeId: callee.id, answered: false, createdAt: serverTimestamp()
         });
 
-        const answerUnsub = onSnapshot(callDocRef, (snapshot) => {
+        const answerUnsub = onSnapshot(callDocRef, async (snapshot) => {
             const data = snapshot.data();
-            if (!pc.current?.currentRemoteDescription && data?.answer) {
+            if (pc.current && !pc.current.currentRemoteDescription && data?.answer) {
                 const answerDescription = new RTCSessionDescription(data.answer);
-                pc.current.setRemoteDescription(answerDescription);
+                await pc.current.setRemoteDescription(answerDescription);
                 setCallState('connected');
                 startTimeRef.current = new Date();
                 setConnectedUser(callee);
@@ -240,7 +240,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         setCallState('searching');
 
         const roomsRef = collection(firestore, 'rooms');
-        const q = query(roomsRef, where('calleeId', '==', null), orderBy('createdAt', 'asc'), limit(10));
+        const q = query(roomsRef, where('calleeId', '==', null), limit(10));
         
         const querySnapshot = await getDocs(q);
         const availableRoom = querySnapshot.docs.find(doc => doc.data().callerId !== user.id);
@@ -270,11 +270,11 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
                 });
             });
             
-            const answerUnsub = onSnapshot(callDocRef, (snapshot) => {
+            const answerUnsub = onSnapshot(callDocRef, async (snapshot) => {
                 const data = snapshot.data();
-                if (data?.answer) {
+                if (pc.current && !pc.current.currentRemoteDescription && data?.answer) {
                     const answerDescription = new RTCSessionDescription(data.answer);
-                    pc.current?.setRemoteDescription(answerDescription);
+                    await pc.current.setRemoteDescription(answerDescription);
                     setCallState('connected');
                     startTimeRef.current = new Date();
                     setConnectedUser({id: data.calleeId, name: data.calleeName, avatar: data.calleeAvatar});
