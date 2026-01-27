@@ -152,25 +152,6 @@ export function VoiceChat() {
       </div>
     );
 
-    if (showDisconnectedMessage && callState === 'idle') {
-        return (
-             <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
-                <div className="h-6"></div>
-                <Button onClick={findRandomCall} className="gap-2">
-                    <RefreshCw/>
-                    Next Call
-                </Button>
-                <div className="flex flex-col items-center gap-2 mt-1">
-                    <div className="flex items-center space-x-2">
-                        <Checkbox id="auto-call" checked={autoCall} onCheckedChange={(checked) => setAutoCall(!!checked)} />
-                        <Label htmlFor="auto-call" className="text-sm text-muted-foreground">Enable Auto Call</Label>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Automatically call the next person</p>
-                </div>
-            </div>
-        )
-    }
-
     if (!isCalling) {
       return renderIdleControls();
     }
