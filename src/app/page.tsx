@@ -50,7 +50,7 @@ function App() {
             RandomTalk.online
           </h1>
         </header>
-        <main className="w-full max-w-lg md:max-w-xl flex-1">
+        <main className="w-full max-w-lg md:max-w-xl flex-1 flex flex-col justify-center">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3 bg-card border">
               <TabsTrigger value="chat" className="gap-2">
