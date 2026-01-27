@@ -65,6 +65,11 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
     const callTypeRef = useRef<'incoming' | 'outgoing' | 'random' | null>(null);
     const endCallTimer = useRef<NodeJS.Timeout | null>(null);
 
+    const callStateRef = useRef(callState);
+    useEffect(() => {
+        callStateRef.current = callState;
+    }, [callState]);
+
     const unsubscribers = useRef<(() => void)[]>([]);
 
     const cleanupCall = useCallback(() => {
@@ -93,10 +98,9 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         if (callIdRef.current && firestore) {
             try {
                 const roomRef = doc(firestore, 'rooms', callIdRef.current);
-                // Non-blocking delete to improve perceived performance
                 deleteDoc(roomRef);
             } catch (error) {
-                console.error("Error queueing call room for deletion:", error);
+                console.error("Error cleaning up call room:", error);
             }
         }
         
@@ -121,18 +125,12 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         cleanupCall();
     }, [callState, connectedUser, cleanupCall]);
 
-    const callStateRef = useRef(callState);
-    useEffect(() => {
-        callStateRef.current = callState;
-    }, [callState]);
-
-    // Listen for incoming calls
+    // Listen for incoming calls and friend requests
     useEffect(() => {
         if (!firestore || !user) return;
-        const callsRef = collection(firestore, 'rooms');
-        const q = query(callsRef, where('calleeId', '==', user.id), where('answered', '==', false));
         
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const callsQuery = query(collection(firestore, 'rooms'), where('calleeId', '==', user.id), where('answered', '==', false));
+        const callsUnsubscribe = onSnapshot(callsQuery, (snapshot) => {
             if (!snapshot.empty && callStateRef.current === 'idle') {
                 const callDoc = snapshot.docs[0];
                 const callData = callDoc.data();
@@ -144,30 +142,15 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             }
         });
 
-        return () => unsubscribe();
-    }, [firestore, user]);
-
-    // Listen for incoming friend requests
-    useEffect(() => {
-        if (!firestore || !user) return;
-        const requestsRef = collection(firestore, 'friendRequests');
-        const q = query(requestsRef, where('toId', '==', user.id), where('status', '==', 'pending'));
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const requestsQuery = query(collection(firestore, 'friendRequests'), where('toId', '==', user.id), where('status', '==', 'pending'));
+        const requestsUnsubscribe = onSnapshot(requestsQuery, (snapshot) => {
             const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setFriendRequests(requests);
         });
 
-        return () => unsubscribe();
-    }, [firestore, user]);
-
-    // Listen for updates on sent friend requests
-    useEffect(() => {
-        if (!firestore || !user) return;
-        const requestsRef = collection(firestore, 'friendRequests');
-        const q = query(requestsRef, where('fromId', '==', user.id));
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        // Listen for updates on sent friend requests
+        const sentRequestsQuery = query(collection(firestore, 'friendRequests'), where('fromId', '==', user.id));
+        const sentRequestsUnsubscribe = onSnapshot(sentRequestsQuery, (snapshot) => {
             snapshot.docChanges().forEach(async (change) => {
                 if (change.type === 'modified') {
                     const request = change.doc.data();
@@ -185,39 +168,48 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             });
         });
         
-        return () => unsubscribe();
+        return () => {
+            callsUnsubscribe();
+            requestsUnsubscribe();
+            sentRequestsUnsubscribe();
+        };
     }, [firestore, user, toast]);
 
     const setupPeerConnection = useCallback(async () => {
         if (pc.current) pc.current.close();
-        pc.current = new RTCPeerConnection(servers);
         
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        setLocalStream(stream);
-        stream.getTracks().forEach(track => pc.current!.addTrack(track, stream));
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            pc.current = new RTCPeerConnection(servers);
+            setLocalStream(stream);
+            stream.getTracks().forEach(track => pc.current!.addTrack(track, stream));
 
-        const remote = new MediaStream();
-        setRemoteStream(remote);
+            const remote = new MediaStream();
+            setRemoteStream(remote);
 
-        pc.current.ontrack = event => {
-            event.streams[0].getTracks().forEach(track => remote.addTrack(track));
-        };
-        
-        pc.current.onconnectionstatechange = () => {
-            if (pc.current?.connectionState === 'connected') {
-                setCallState('connected');
-                startTimeRef.current = new Date();
-                 if (endCallTimer.current) {
-                    clearTimeout(endCallTimer.current);
-                    endCallTimer.current = null;
+            pc.current.ontrack = event => {
+                event.streams[0].getTracks().forEach(track => remote.addTrack(track));
+            };
+            
+            pc.current.onconnectionstatechange = () => {
+                if (pc.current?.connectionState === 'connected') {
+                    setCallState('connected');
+                    startTimeRef.current = new Date();
+                    if (endCallTimer.current) {
+                        clearTimeout(endCallTimer.current);
+                        endCallTimer.current = null;
+                    }
+                } else if (['disconnected', 'failed', 'closed'].includes(pc.current?.connectionState || '')) {
+                    hangup();
                 }
-            } else if (['disconnected', 'failed', 'closed'].includes(pc.current?.connectionState || '')) {
-                hangup();
-            }
-        };
+            };
+        } catch (error) {
+            console.error("Failed to get user media", error);
+            pc.current = null;
+        }
     }, [hangup]);
     
-    const createCall = async (callee?: AppUser) => {
+    const createCall = async (callee?: AppUser, setupDone = false) => {
         if (!firestore || !user) return;
 
         setCallState(callee ? 'outgoing' : 'searching');
@@ -228,7 +220,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
              callTypeRef.current = 'random';
         }
 
-        await setupPeerConnection();
+        if (!setupDone) await setupPeerConnection();
         if(!pc.current) return;
 
         const callDocRef = doc(collection(firestore, 'rooms'));
@@ -260,14 +252,12 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         }, 30000);
 
         const unsub1 = onSnapshot(callDocRef, (snapshot) => {
-            if (!snapshot.exists()) {
-                if (callStateRef.current !== 'idle' && callStateRef.current !== 'disconnected') {
-                    toast({ variant: 'destructive', title: 'Call Ended', description: 'The other user disconnected.' });
-                    hangup();
-                }
+            const data = snapshot.data();
+            if (!snapshot.exists() && callStateRef.current !== 'idle' && callStateRef.current !== 'disconnected') {
+                toast({ variant: 'destructive', title: 'Call Ended', description: 'The other user disconnected.' });
+                hangup();
                 return;
             }
-            const data = snapshot.data();
             if (data?.answer && pc.current && !pc.current.currentRemoteDescription) {
                 pc.current.setRemoteDescription(new RTCSessionDescription(data.answer));
             }
@@ -283,33 +273,41 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         unsubscribers.current.push(unsub1, unsub2);
     };
 
-    const startCall = (callee: AppUser) => createCall(callee);
+    const startCall = (callee: AppUser) => createCall(callee, false);
 
     const findRandomCall = async () => {
         if (!firestore || !user) return;
         setCallState('searching');
 
-        const roomsRef = collection(firestore, 'rooms');
-        const q = query(roomsRef, where('calleeId', '==', null), where('answered', '==', false));
-        const querySnapshot = await getDocs(q);
+        const setupPromise = setupPeerConnection();
+        const roomsQuery = query(collection(firestore, 'rooms'), where('answered', '==', false));
+        const queryPromise = getDocs(roomsQuery);
+        
+        const [_, querySnapshot] = await Promise.all([setupPromise, queryPromise]);
+        
+        if(!pc.current) {
+            setCallState('idle'); 
+            toast({ variant: 'destructive', title: 'Permission Denied', description: 'Microphone access is required to start a call.' });
+            return;
+        }
 
         const availableRooms = querySnapshot.docs
             .map(doc => ({ id: doc.id, data: doc.data() }))
-            .filter(room => room.data.callerId !== user.id);
+            .filter(room => room.data.callerId !== user.id && !room.data.calleeId);
 
         if (availableRooms.length > 0) {
             const randomRoom = availableRooms[Math.floor(Math.random() * availableRooms.length)];
-            await joinCall(randomRoom.id, false);
+            await joinCall(randomRoom.id, false, true);
         } else {
-            await createCall();
+            await createCall(undefined, true);
         }
     };
     
-    const joinCall = async (roomId: string, isAccepting: boolean) => {
+    const joinCall = async (roomId: string, isAccepting: boolean, setupDone = false) => {
          if (!firestore || !user) return;
          callIdRef.current = roomId;
          
-         await setupPeerConnection();
+         if (!setupDone) await setupPeerConnection();
          if(!pc.current) return;
 
          const roomRef = doc(firestore, 'rooms', roomId);
@@ -335,11 +333,9 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
          await updateDoc(roomRef, { answer, calleeId: user.id, calleeName: user.name, calleeAvatar: user.avatar, answered: true });
 
          const unsub1 = onSnapshot(roomRef, (snapshot) => {
-            if (!snapshot.exists()) {
-                if (callStateRef.current !== 'idle' && callStateRef.current !== 'disconnected') {
-                    toast({ variant: 'destructive', title: 'Call Ended', description: 'The other user disconnected.' });
-                    hangup();
-                }
+            if (!snapshot.exists() && callStateRef.current !== 'idle' && callStateRef.current !== 'disconnected') {
+                toast({ variant: 'destructive', title: 'Call Ended', description: 'The other user disconnected.' });
+                hangup();
                 return;
             }
         });
@@ -358,7 +354,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
 
     const acceptCall = () => {
         if (!incomingCall) return;
-        joinCall(incomingCall.callId, true);
+        joinCall(incomingCall.callId, true, false);
     }
 
     const rejectCall = async () => {
