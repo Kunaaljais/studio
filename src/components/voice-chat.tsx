@@ -171,7 +171,6 @@ export function VoiceChat() {
               variant="ghost"
               className="flex flex-col items-center justify-center h-auto px-2 py-1 hover:bg-transparent"
               onClick={handleHangupClick}
-              onMouseLeave={() => setConfirmHangup(false)}
             >
               <div className="bg-destructive hover:bg-red-600 rounded-full p-4 transition-colors">
                 {confirmHangup ? (
@@ -180,7 +179,7 @@ export function VoiceChat() {
                   <PhoneOff className="w-7 h-7 text-destructive-foreground"/>
                 )}
               </div>
-              <span className="mt-1 text-xs">{confirmHangup ? 'Confirm' : 'Hang Up'}</span>
+              <span className="mt-1 text-xs text-foreground">{confirmHangup ? 'Confirm' : 'Hang Up'}</span>
             </Button>
           ) : null }
 
