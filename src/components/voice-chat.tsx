@@ -231,8 +231,8 @@ export function VoiceChat() {
   return (
     <>
     <Card className="w-full max-w-sm shadow-2xl">
-      <CardContent className="p-2">
-        <div className="flex flex-col items-center justify-center p-6 gap-4">
+      <CardContent className="p-0">
+        <div className="flex flex-col items-center justify-center p-4 gap-2 h-[376px]">
             <div className={cn(
                 "w-48 h-48 rounded-full border-4 flex flex-col items-center justify-center transition-colors duration-500",
                 callState === 'connected' ? 'border-green-500' : 'border-primary'
