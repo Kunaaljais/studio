@@ -206,21 +206,21 @@ export function VoiceChat() {
           {isCalling && (
             <>
             <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 disabled:opacity-50 hover:bg-transparent hover:text-current" onClick={toggleMute} disabled={!isConnected}>
-                <div className={cn("rounded-full p-4", isConnected ? "bg-secondary hover:bg-secondary/80" : "bg-secondary")}>
+                <div className={cn("rounded-full p-4 transition-colors", isConnected ? "bg-secondary hover:bg-secondary/80" : "bg-secondary")}>
                     {isMuted ? <MicOff className="w-7 h-7" /> : <Mic className="w-7 h-7" />}
                 </div>
                 <span className={cn('mt-1 text-xs', !isConnected ? 'text-muted-foreground' : '')}>{isMuted ? 'Unmute' : 'Mute'}</span>
             </Button>
 
             <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 disabled:opacity-50 hover:bg-transparent hover:text-current" onClick={handleAddFriend} disabled={!isConnected || friendRequestSent}>
-                <div className={cn("rounded-full p-4", isConnected ? "bg-secondary hover:bg-secondary/80" : "bg-secondary")}>
+                <div className={cn("rounded-full p-4 transition-colors", isConnected ? "bg-secondary hover:bg-secondary/80" : "bg-secondary")}>
                     <UserPlus className="w-7 h-7"/>
                 </div>
                 <span className={cn('mt-1 text-xs', !isConnected ? 'text-muted-foreground' : '')}>{friendRequestSent ? 'Sent' : 'Add Friend'}</span>
             </Button>
 
             <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 disabled:opacity-50 hover:bg-transparent hover:text-current" onClick={() => setReportDialogOpen(true)} disabled={!isConnected}>
-                <div className={cn("rounded-full p-4", isConnected ? "bg-secondary hover:bg-secondary/80" : "bg-secondary")}>
+                <div className={cn("rounded-full p-4 transition-colors", isConnected ? "bg-secondary hover:bg-secondary/80" : "bg-secondary")}>
                     <ShieldAlert className="w-7 h-7"/>
                 </div>
                 <span className={cn('mt-1 text-xs', !isConnected ? 'text-muted-foreground' : '')}>Report</span>
@@ -235,9 +235,9 @@ export function VoiceChat() {
 
   return (
     <>
-    <Card className="w-full max-w-sm shadow-2xl">
+    <Card className="w-full max-w-sm shadow-2xl mx-auto">
       <CardContent className="p-0">
-        <div className="flex flex-col items-center justify-center p-6 gap-4 h-[340px]">
+        <div className="flex flex-col items-center justify-center p-6 gap-4 h-[420px]">
             <div className={cn(
                 "w-48 h-48 rounded-full border-4 flex flex-col items-center justify-center transition-colors duration-500",
                 callState === 'connected' ? 'border-green-500' : 'border-primary'
