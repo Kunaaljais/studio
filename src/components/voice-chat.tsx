@@ -41,11 +41,10 @@ export function VoiceChat() {
   useEffect(() => {
     if (prevCallState.current === 'connected' && callState === 'idle') {
       setShowDisconnectedMessage(true);
-    }
-    if (callState !== 'idle') {
+    } else if (callState !== 'idle') {
       setShowDisconnectedMessage(false);
     }
-    
+
     if (callState === 'searching' || callState === 'outgoing' || callState === 'connected') {
       setConfirmHangup(false);
     }
@@ -90,18 +89,10 @@ export function VoiceChat() {
             return <p className="text-3xl font-mono text-primary-foreground">{formatTime(timer)}</p>;
         case 'idle':
         default:
-             if (showDisconnectedMessage) {
-                return (
-                    <div className="flex flex-col items-center gap-2 text-center">
-                        <PhoneOff className="w-12 h-12 text-destructive" />
-                        <h2 className="text-lg font-bold text-primary-foreground">Call Ended</h2>
-                    </div>
-                )
-            }
-            return (
+             return (
                 <div className="flex flex-col items-center gap-2 text-center">
                     <Waves className="w-12 h-12 text-primary" />
-                    <h2 className="text-lg font-bold text-primary-foreground">RandomTalk.online</h2>
+                    <h2 className="text-lg font-bold text-primary-foreground">RandomTalk</h2>
                 </div>
             )
     }
@@ -111,7 +102,7 @@ export function VoiceChat() {
     const isCalling = callState !== 'idle';
     const isConnected = callState === 'connected';
 
-    if (showDisconnectedMessage && callState === 'idle') {
+    if (callState === 'idle' && showDisconnectedMessage) {
         return (
             <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
                 <div className="h-6"></div>
@@ -241,11 +232,10 @@ export function VoiceChat() {
     <>
     <Card className="w-full max-w-sm shadow-2xl">
       <CardContent className="p-2">
-        <div className="flex flex-col items-center justify-center p-2 gap-2 h-[380px]">
+        <div className="flex flex-col items-center justify-center p-6 gap-4">
             <div className={cn(
                 "w-48 h-48 rounded-full border-4 flex flex-col items-center justify-center transition-colors duration-500",
-                callState === 'connected' ? 'border-green-500' : 'border-primary',
-                showDisconnectedMessage && callState === 'idle' && 'border-destructive'
+                callState === 'connected' ? 'border-green-500' : 'border-primary'
             )}>
                 {renderCircleContent()}
             </div>
