@@ -206,7 +206,7 @@ export function VoiceChat() {
       <CardContent className="p-0">
         <div className="flex flex-col items-center justify-center p-4 gap-2">
             <div className={cn(
-                "w-32 h-32 rounded-full border-4 flex flex-col items-center justify-center transition-colors duration-500",
+                "w-40 h-40 rounded-full border-4 flex flex-col items-center justify-center transition-colors duration-500",
                 callState === 'connected' ? 'border-green-500' : 'border-primary'
             )}>
                 {renderCircleContent()}
