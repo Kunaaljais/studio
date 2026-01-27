@@ -2,6 +2,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseProvider } from '@/firebase/provider';
+import { UserProvider } from '@/contexts/user-context';
 
 export const metadata: Metadata = {
   title: 'RandomTalk Online',
@@ -22,7 +23,9 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <FirebaseProvider>
-          {children}
+          <UserProvider>
+            {children}
+          </UserProvider>
         </FirebaseProvider>
         <Toaster />
       </body>

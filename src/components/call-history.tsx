@@ -1,60 +1,29 @@
 "use client"
 
-import { useCollection } from "@/firebase/firestore/use-collection"
+import { useState, useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { Clock, Phone, Loader2 } from "lucide-react"
+import { Clock, Phone, ArrowUpRight, ArrowDownLeft, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useFirestore } from "@/firebase"
-import { collection, query, orderBy, where } from "firebase/firestore"
-import { useMemo } from "react"
-import { formatDistanceToNow } from "date-fns"
 import { useCall } from "@/contexts/call-context"
+import { formatDistanceToNow } from "date-fns"
+import { getCallHistoryFromStorage } from "@/lib/local-storage"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
-interface CallHistoryProps {
-  user: { id: string; name: string; avatar: string; };
-}
-
-export function CallHistory({ user }: CallHistoryProps) {
-  const firestore = useFirestore()
+export function CallHistory() {
   const { startCall, callState } = useCall();
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const callsQuery = useMemo(() => {
-    if (!user || !firestore) return null
-    return query(collection(firestore, `users/${user.id}/calls`), orderBy("startedAt", "desc"));
-  }, [user, firestore])
-
-  const { data: callHistory, loading } = useCollection(callsQuery)
-  
-  const otherUserIds = useMemo(() => {
-    if (!callHistory) return [];
-    return Array.from(new Set(callHistory.map((c: any) => c.callerId === user.id ? c.calleeId : c.callerId)));
-  }, [callHistory, user.id]);
-
-  const usersQuery = useMemo(() => {
-      if (!firestore || otherUserIds.length === 0) return null;
-      return query(collection(firestore, 'users'), where('id', 'in', otherUserIds));
-  }, [firestore, otherUserIds]);
-
-  const { data: users, loading: usersLoading } = useCollection(usersQuery);
-
-  const usersById = useMemo(() => {
-      if (!users) return {};
-      return users.reduce((acc, u: any) => {
-          acc[u.id] = u;
-          return acc;
-      }, {} as { [key: string]: any });
-  }, [users]);
-
+  useEffect(() => {
+    setHistory(getCallHistoryFromStorage());
+    setLoading(false);
+  }, []);
 
   const handleCall = (callData: any) => {
-    const otherUserId = callData.callerId === user.id ? callData.calleeId : callData.callerId;
-    const otherUser = usersById[otherUserId];
-    if (otherUser) {
-      startCall(otherUser);
-    }
+    startCall(callData.user);
   }
 
   const formatDuration = (seconds: number) => {
@@ -71,48 +40,50 @@ export function CallHistory({ user }: CallHistoryProps) {
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-[400px]">
-          {(loading || usersLoading) && (
+          {loading && (
             <div className="flex justify-center items-center h-full">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           )}
-          {!(loading || usersLoading) && callHistory && callHistory.length > 0 ? (
-            <div className="space-y-4">
-              {callHistory.map((call: any, index) => {
-                  const otherUserId = call.callerId === user.id ? call.calleeId : call.callerId;
-                  const otherUserName = call.callerId === user.id ? call.calleeName : call.callerName;
-                  const otherUserAvatar = call.callerId === user.id ? call.calleeAvatar : call.callerAvatar;
-                  const callee = usersById[otherUserId];
-                  const isOnline = callee?.online || false;
-                  
-                  return (
-                    <div key={call.id}>
-                        <div className="flex items-center gap-4">
-                            <Avatar className="h-12 w-12">
-                            <AvatarImage src={otherUserAvatar} alt={otherUserName} data-ai-hint="person portrait" />
-                            <AvatarFallback>{otherUserName.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                            <p className="font-semibold">{otherUserName}</p>
-                            <p className="text-sm text-muted-foreground">
-                                {call.startedAt ? formatDistanceToNow(call.startedAt.toDate(), { addSuffix: true }) : 'N/A'}
-                            </p>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Clock className="w-4 h-4" />
-                            <span>{formatDuration(call.duration)}</span>
-                            </div>
-                            <Button variant="ghost" size="icon" onClick={() => handleCall(call)} disabled={!isOnline || callState !== 'idle'}>
-                            <Phone className="w-4 h-4" />
-                            </Button>
-                        </div>
-                        {index < callHistory.length - 1 && <Separator className="mt-4" />}
-                    </div>
-                  )
-                })}
-            </div>
+          {!loading && history && history.length > 0 ? (
+            <TooltipProvider>
+              <div className="space-y-4">
+                {history.map((call: any, index) => (
+                      <div key={call.id}>
+                          <div className="flex items-center gap-4">
+                              <Avatar className="h-12 w-12">
+                              <AvatarImage src={call.user.avatar} alt={call.user.name} data-ai-hint="person portrait" />
+                              <AvatarFallback>{call.user.name.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                              <p className="font-semibold">{call.user.name}</p>
+                              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                {call.type === 'outgoing' ? <ArrowUpRight className="w-3 h-3 text-red-500" /> : <ArrowDownLeft className="w-3 h-3 text-green-500" />}
+                                {call.date ? formatDistanceToNow(new Date(call.date), { addSuffix: true }) : 'N/A'}
+                              </p>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Clock className="w-4 h-4" />
+                              <span>{formatDuration(call.duration)}</span>
+                              </div>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={() => handleCall(call)} disabled={callState !== 'idle'}>
+                                      <Phone className="w-4 h-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Call {call.user.name}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                          </div>
+                          {index < history.length - 1 && <Separator className="mt-4" />}
+                      </div>
+                    ))}
+              </div>
+            </TooltipProvider>
           ) : (
-            !(loading || usersLoading) && (
+            !loading && (
               <div className="text-center text-muted-foreground py-16">
                 <p>Your call history is empty.</p>
                 <p>Start a chat to see your history here.</p>

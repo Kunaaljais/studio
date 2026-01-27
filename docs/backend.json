@@ -2,7 +2,7 @@
   "entities": {
     "user": {
       "title": "User",
-      "description": "A user of the application.",
+      "description": "A user of the application, for presence.",
       "type": "object",
       "properties": {
         "id": {
@@ -22,50 +22,7 @@
           "description": "Whether the user is currently online."
         }
       },
-      "required": ["id", "name", "avatar"]
-    },
-    "call": {
-      "title": "Call",
-      "description": "A record of a call between two users.",
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "callerId": {
-          "type": "string"
-        },
-        "calleeId": {
-          "type": "string"
-        },
-        "startedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "duration": {
-          "type": "number",
-          "description": "Duration of the call in seconds."
-        }
-      },
-      "required": ["callerId", "calleeId", "startedAt"]
-    },
-    "friend": {
-      "title": "Friend",
-      "description": "A friendship link between two users.",
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "friendId": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "required": ["friendId", "createdAt"]
+      "required": ["id", "name", "avatar", "online"]
     },
     "room": {
       "title": "Room",
@@ -87,6 +44,26 @@
         },
         "callerAvatar": {
             "type": "string"
+        },
+        "calleeId": {
+            "type": "string"
+        },
+        "calleeName": {
+            "type": "string"
+        },
+        "calleeAvatar": {
+            "type": "string"
+        },
+        "answered": {
+            "type": "boolean"
+        },
+        "friendRequest": {
+            "type": "object",
+            "properties": {
+                "from": { "type": "string" },
+                "to": { "type": "string" },
+                "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] }
+            }
         }
       }
     },
@@ -146,37 +123,13 @@
       "schema": {
         "$ref": "#/backend/entities/user"
       },
-      "description": "User profile information."
-    },
-    "/users/{userId}/calls/{callId}": {
-      "schema": {
-        "$ref": "#/backend/entities/call"
-      },
-      "description": "A user's call history."
-    },
-    "/users/{userId}/friends/{friendId}": {
-      "schema": {
-        "$ref": "#/backend/entities/friend"
-      },
-      "description": "A user's list of friends."
+      "description": "User profile information for presence."
     },
     "/rooms/{roomId}": {
       "schema": {
         "$ref": "#/backend/entities/room"
       },
       "description": "WebRTC signaling rooms, available for a short time."
-    },
-    "/rooms/{roomId}/offer": {
-      "schema": {
-        "$ref": "#/backend/entities/offer"
-      },
-      "description": "WebRTC offer for a room."
-    },
-    "/rooms/{roomId}/answer": {
-      "schema": {
-        "$ref": "#/backend/entities/answer"
-      },
-      "description": "WebRTC answer for a room."
     },
     "/rooms/{roomId}/callerCandidates/{candidateId}": {
       "schema": {
