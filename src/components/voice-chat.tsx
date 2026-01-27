@@ -8,16 +8,14 @@ import {
   UserPlus,
   ShieldAlert,
   Loader2,
-  MessageCircle,
+  Waves,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ReportDialog } from "@/components/report-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { useCall } from "@/contexts/call-context"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 
@@ -58,17 +56,34 @@ export function VoiceChat() {
     });
   };
   
-  const renderContent = () => {
-    switch (callState) {
+  const renderCircleContent = () => {
+    switch(callState) {
+        case 'searching':
+        case 'outgoing':
+            return <Loader2 className="w-16 h-16 animate-spin text-primary" />;
+        case 'connected':
+            return <p className="text-4xl font-mono text-primary-foreground">{formatTime(timer)}</p>;
+        case 'idle':
+        default:
+            return (
+                <div className="flex flex-col items-center gap-2 text-center">
+                    <Waves className="w-16 h-16 text-primary" />
+                    <h2 className="text-xl font-bold text-primary-foreground">RandomTalk</h2>
+                </div>
+            )
+    }
+  }
+
+  const renderControls = () => {
+     switch (callState) {
       case "idle":
         return (
-          <div className="flex flex-col items-center justify-center text-center p-8 min-h-[350px]">
-            <h2 className="text-2xl font-semibold mb-2">Ready to Talk?</h2>
-            <p className="text-muted-foreground mb-6">Press the button to connect with a random user.</p>
-            <Button onClick={findRandomCall}>
-              <MessageCircle className="mr-2" /> Find a random chat
+          <div className="flex flex-col items-center justify-center text-center gap-6">
+            <p className="text-muted-foreground">Press the button to connect with a random user.</p>
+            <Button onClick={findRandomCall} size="lg">
+              Find a random chat
             </Button>
-            <div className="flex items-center space-x-2 mt-6">
+            <div className="flex items-center space-x-2">
                 <Checkbox id="auto-call" checked={autoCall} onCheckedChange={(checked) => setAutoCall(!!checked)} />
                 <Label htmlFor="auto-call" className="text-muted-foreground">Automatically find next chat</Label>
             </div>
@@ -76,86 +91,51 @@ export function VoiceChat() {
         );
       case "searching":
         return (
-            <div className="flex flex-col items-center justify-center text-center p-8 min-h-[350px]">
-            <Loader2 className="w-16 h-16 animate-spin text-primary mb-4" />
-            <h2 className="text-2xl font-semibold mb-2">Searching for a user...</h2>
-            <p className="text-muted-foreground mb-6">Please wait while we connect you.</p>
+            <div className="flex flex-col items-center justify-center text-center gap-6">
+            <p className="text-muted-foreground">Please wait while we connect you.</p>
             <Button variant="destructive" onClick={() => hangup()}>
-                <PhoneOff className="mr-2" /> Cancel
+                Cancel
             </Button>
             </div>
         );
       case "outgoing":
         return (
-          <div className="flex flex-col items-center justify-center text-center p-8 min-h-[350px]">
-            <Loader2 className="w-16 h-16 animate-spin text-primary mb-4" />
-            <h2 className="text-2xl font-semibold mb-2">Calling {connectedUser?.name}...</h2>
-            <p className="text-muted-foreground mb-6">Waiting for them to pick up.</p>
+          <div className="flex flex-col items-center justify-center text-center gap-6">
+            <p className="text-muted-foreground">Calling {connectedUser?.name}... waiting for them to pick up.</p>
             <Button variant="destructive" onClick={() => hangup()}>
-              <PhoneOff className="mr-2" /> Cancel Call
+              Cancel Call
             </Button>
           </div>
         );
       case "connected":
         return (
-          <div className="flex flex-col items-center text-center p-8 min-h-[350px]">
-            <Avatar className="w-32 h-32 mb-4 border-4 border-primary shadow-lg">
-              <AvatarImage src={connectedUser?.avatar} alt={connectedUser?.name} data-ai-hint="person portrait" />
-              <AvatarFallback>{connectedUser?.name?.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <h2 className="text-2xl font-bold">{connectedUser?.name}</h2>
-            <p className="text-2xl font-mono text-muted-foreground mt-2">{formatTime(timer)}</p>
-            <TooltipProvider>
-              <div className="flex gap-4 mt-8">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" className="w-16 h-16 rounded-full" onClick={() => setReportDialogOpen(true)}>
-                      <ShieldAlert />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>Report User</p></TooltipContent>
-                </Tooltip>
+          <div className="flex flex-col items-center text-center gap-6">
+             <h2 className="text-2xl font-bold">{connectedUser?.name}</h2>
+              <div className="flex justify-center gap-4">
+                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-4 py-2" onClick={() => setReportDialogOpen(true)}>
+                  <ShieldAlert className="w-6 h-6 mb-1"/>
+                  <span>Report</span>
+                </Button>
                 
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                     <Button size="icon" className={cn("w-16 h-16 rounded-full", isMuted ? "bg-secondary" : "bg-primary")} onClick={toggleMute}>
-                        {isMuted ? <MicOff /> : <Mic />}
-                      </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>{isMuted ? 'Unmute' : 'Mute'}</p></TooltipContent>
-                </Tooltip>
+                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-4 py-2" onClick={toggleMute}>
+                    {isMuted ? <MicOff className="w-6 h-6 mb-1" /> : <Mic className="w-6 h-6 mb-1" />}
+                    <span>{isMuted ? 'Unmute' : 'Mute'}</span>
+                </Button>
 
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="destructive" size="icon" className="w-16 h-16 rounded-full" onClick={() => hangup()}>
-                      <PhoneOff />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>Hang Up</p></TooltipContent>
-                </Tooltip>
+                <Button variant="destructive" className="flex flex-col items-center justify-center h-auto px-4 py-2" onClick={() => hangup()}>
+                  <PhoneOff className="w-6 h-6 mb-1"/>
+                   <span>Hang Up</span>
+                </Button>
 
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" className="w-16 h-16 rounded-full" onClick={handleAddFriend} disabled={friendRequestSent}>
-                      <UserPlus />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>{friendRequestSent ? 'Request Sent' : 'Add Friend'}</p></TooltipContent>
-                </Tooltip>
+                 <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-4 py-2" onClick={handleAddFriend} disabled={friendRequestSent}>
+                  <UserPlus className="w-6 h-6 mb-1"/>
+                  <span>{friendRequestSent ? 'Sent' : 'Add Friend'}</span>
+                </Button>
               </div>
-            </TooltipProvider>
           </div>
         );
       default:
-        return (
-            <div className="flex flex-col items-center justify-center text-center p-8 min-h-[350px]">
-              <h2 className="text-2xl font-semibold mb-2">Ready to Talk?</h2>
-              <p className="text-muted-foreground mb-6">Press the button to connect with a random user.</p>
-              <Button onClick={findRandomCall}>
-                <MessageCircle className="mr-2" /> Find a random chat
-              </Button>
-            </div>
-        )
+        return null;
     }
   }
 
@@ -163,8 +143,16 @@ export function VoiceChat() {
     <>
     <Card className="w-full shadow-2xl">
       <CardContent className="p-0">
-        <div className="relative">
-            {renderContent()}
+        <div className="flex flex-col items-center justify-center p-8 min-h-[450px] gap-8">
+            <div className={cn(
+                "w-64 h-64 rounded-full border-8 flex flex-col items-center justify-center transition-colors duration-500",
+                callState === 'connected' ? 'border-green-500' : 'border-primary'
+            )}>
+                {renderCircleContent()}
+            </div>
+            <div className="h-24">
+                {renderControls()}
+            </div>
         </div>
       </CardContent>
     </Card>
