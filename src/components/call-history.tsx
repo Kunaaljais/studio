@@ -34,12 +34,12 @@ export function CallHistory() {
   }
   
   return (
-    <Card>
+    <Card className="rounded-t-none">
       <CardHeader>
         <CardTitle>Call History</CardTitle>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[280px]">
+        <ScrollArea className="h-[360px]">
           {loading && (
             <div className="flex justify-center items-center h-full">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />

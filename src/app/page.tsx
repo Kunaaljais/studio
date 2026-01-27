@@ -51,9 +51,9 @@ function App() {
             RandomTalk
           </h1>
         </header>
-        <main className="w-full max-w-lg md:max-w-xl mx-auto flex-1 flex flex-col">
+        <main className="w-full max-w-lg md:max-w-xl mx-auto flex-1 flex flex-col justify-start items-center">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-             <TabsList className="grid w-full grid-cols-3">
+             <TabsList className="grid w-full grid-cols-3 rounded-b-none">
               <TabsTrigger value="chat" className="gap-2">
                 <MessageCircle /> Chat
               </TabsTrigger>
@@ -64,13 +64,13 @@ function App() {
                 <Users /> Friends
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="chat" className="mt-4">
+            <TabsContent value="chat">
               <VoiceChat />
             </TabsContent>
-            <TabsContent value="history" className="mt-4">
+            <TabsContent value="history">
               <CallHistory />
             </TabsContent>
-            <TabsContent value="friends" className="mt-4">
+            <TabsContent value="friends">
               <FriendsList />
             </TabsContent>
           </Tabs>

@@ -235,7 +235,7 @@ export function VoiceChat() {
 
   return (
     <>
-    <Card className="w-full max-w-sm shadow-2xl mx-auto">
+    <Card className="w-full shadow-2xl rounded-t-none">
       <CardContent className="p-0">
         <div className="flex flex-col items-center justify-center p-6 gap-4 h-[420px]">
             <div className={cn(

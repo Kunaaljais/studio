@@ -102,7 +102,7 @@ export function FriendsList() {
 
 
   return (
-    <Card>
+    <Card className="rounded-t-none">
       <CardHeader>
         <CardTitle>Social</CardTitle>
       </CardHeader>
@@ -118,7 +118,7 @@ export function FriendsList() {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="friends" className="mt-4">
-             <ScrollArea className="h-[224px]">
+             <ScrollArea className="h-[285px]">
               {sortedFriends && sortedFriends.length > 0 ? (
                 <div className="space-y-4">
                   {sortedFriends.map((friend, index) => (
@@ -175,7 +175,7 @@ export function FriendsList() {
             </ScrollArea>
           </TabsContent>
           <TabsContent value="requests" className="mt-4">
-            <ScrollArea className="h-[224px]">
+            <ScrollArea className="h-[285px]">
               {friendRequests.length > 0 ? (
                   <div className="space-y-4">
                       {friendRequests.map((req, index) => (
