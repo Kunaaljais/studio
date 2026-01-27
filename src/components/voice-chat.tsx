@@ -34,23 +34,19 @@ export function VoiceChat() {
   const [isReportDialogOpen, setReportDialogOpen] = useState(false);
   const [friendRequestSent, setFriendRequestSent] = useState(false);
   const [autoCall, setAutoCall] = useState(false);
-  const [showNextCallUI, setShowNextCallUI] = useState(false);
+  const [showDisconnectedMessage, setShowDisconnectedMessage] = useState(false);
   const [confirmHangup, setConfirmHangup] = useState(false);
   const prevCallState = useRef(callState);
 
-  const handleNextCall = () => {
-    setShowNextCallUI(false);
-    findRandomCall();
-  };
-
   useEffect(() => {
-    // Show 'Next' UI when a call ends
     if (prevCallState.current === 'connected' && callState === 'idle') {
-      setShowNextCallUI(true);
+      setShowDisconnectedMessage(true);
     }
-    // Hide 'Next' UI when a new call starts, and reset confirm hangup
+    if (callState !== 'idle') {
+      setShowDisconnectedMessage(false);
+    }
+    
     if (callState === 'searching' || callState === 'outgoing' || callState === 'connected') {
-      setShowNextCallUI(false);
       setConfirmHangup(false);
     }
 
@@ -58,13 +54,12 @@ export function VoiceChat() {
         setFriendRequestSent(false);
     }
 
-    // Handle auto-call logic
-    if ( (prevCallState.current === 'connected' || (showNextCallUI && prevCallState.current === 'idle') ) && callState === 'idle' && autoCall) {
-        handleNextCall();
+    if (prevCallState.current === 'connected' && callState === 'idle' && autoCall) {
+        findRandomCall();
     }
     prevCallState.current = callState;
 
-  }, [callState, autoCall, showNextCallUI]);
+  }, [callState, autoCall, findRandomCall]);
 
 
   const handleAddFriend = () => {
@@ -90,15 +85,15 @@ export function VoiceChat() {
     switch(callState) {
         case 'searching':
         case 'outgoing':
-            return <Loader2 className="w-10 h-10 animate-spin text-primary" />;
+            return <Loader2 className="w-12 h-12 animate-spin text-primary" />;
         case 'connected':
-            return <p className="text-2xl font-mono text-primary-foreground">{formatTime(timer)}</p>;
+            return <p className="text-3xl font-mono text-primary-foreground">{formatTime(timer)}</p>;
         case 'idle':
         default:
             return (
                 <div className="flex flex-col items-center gap-2 text-center">
-                    <Waves className="w-10 h-10 text-primary" />
-                    <h2 className="text-md font-bold text-primary-foreground">RandomTalk.online</h2>
+                    <Waves className="w-12 h-12 text-primary" />
+                    <h2 className="text-lg font-bold text-primary-foreground">RandomTalk.online</h2>
                 </div>
             )
     }
@@ -109,41 +104,41 @@ export function VoiceChat() {
     const isConnected = callState === 'connected';
     
     const renderIdleControls = () => (
-        <div className="flex flex-col items-center justify-center text-center gap-4 w-full">
+        <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
             <div className="h-6">
             </div>
 
-            <div className="flex justify-center items-start gap-1">
-                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-3 py-2 hover:bg-transparent hover:text-current" onClick={findRandomCall}>
-                    <div className="bg-green-500 hover:bg-green-600 rounded-full p-4 transition-colors">
-                    <Phone className="w-6 h-6 text-white"/>
+            <div className="flex justify-center items-start">
+                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 hover:bg-transparent" onClick={findRandomCall}>
+                    <div className="bg-green-500 hover:bg-green-500/90 rounded-full p-4 transition-colors">
+                    <Phone className="w-7 h-7 text-white"/>
                     </div>
-                    <span className="mt-2 text-xs">Call</span>
+                    <span className="mt-1 text-xs">Call</span>
                 </Button>
 
-                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-3 py-2 disabled:opacity-50 hover:bg-transparent hover:text-current" onClick={toggleMute} disabled={true}>
+                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 disabled:opacity-50 hover:bg-transparent hover:text-current" disabled={true}>
                     <div className="bg-secondary rounded-full p-4">
-                        <Mic className="w-6 h-6" />
+                        <Mic className="w-7 h-7" />
                     </div>
-                    <span className={'mt-2 text-xs text-muted-foreground'}>Mute</span>
+                    <span className={'mt-1 text-xs text-muted-foreground'}>Mute</span>
                 </Button>
 
-                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-3 py-2 disabled:opacity-50 hover:bg-transparent hover:text-current" disabled={true}>
+                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 disabled:opacity-50 hover:bg-transparent hover:text-current" disabled={true}>
                     <div className="bg-secondary rounded-full p-4">
-                        <UserPlus className="w-6 h-6"/>
+                        <UserPlus className="w-7 h-7"/>
                     </div>
-                    <span className={'mt-2 text-xs text-muted-foreground'}>Add Friend</span>
+                    <span className={'mt-1 text-xs text-muted-foreground'}>Add Friend</span>
                 </Button>
 
-                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-3 py-2 disabled:opacity-50 hover:bg-transparent hover:text-current" disabled={true}>
+                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 disabled:opacity-50 hover:bg-transparent hover:text-current" disabled={true}>
                     <div className="bg-secondary rounded-full p-4">
-                        <ShieldAlert className="w-6 h-6"/>
+                        <ShieldAlert className="w-7 h-7"/>
                     </div>
-                    <span className={'mt-2 text-xs text-muted-foreground'}>Report</span>
+                    <span className={'mt-1 text-xs text-muted-foreground'}>Report</span>
                 </Button>
             </div>
             
-            <div className="flex flex-col items-center gap-2 mt-2">
+            <div className="flex flex-col items-center gap-2 mt-1">
                 <div className="flex items-center space-x-2">
                     <Checkbox id="auto-call" checked={autoCall} onCheckedChange={(checked) => setAutoCall(!!checked)} />
                     <Label htmlFor="auto-call" className="text-sm text-muted-foreground">Enable Auto Call</Label>
@@ -153,65 +148,63 @@ export function VoiceChat() {
       </div>
     );
 
-    if (showNextCallUI && callState === 'idle') {
+    if (!isCalling) {
       return renderIdleControls();
     }
 
 
     return (
-      <div className="flex flex-col items-center justify-center text-center gap-4 w-full">
+      <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
         <div className="h-6">
           {isConnected && <h2 className="text-xl font-bold">{connectedUser?.name}</h2>}
           {callState === 'outgoing' && <p className="text-muted-foreground">Calling {connectedUser?.name}...</p>}
           {callState === 'searching' && <p className="text-muted-foreground">Searching for a user...</p>}
         </div>
 
-        <div className="flex justify-center items-start gap-1">
+        <div className="flex justify-center items-start">
           {isCalling ? (
             <Button
               variant="ghost"
-              className="flex flex-col items-center justify-center h-auto px-3 py-2 hover:bg-transparent hover:text-current"
+              className="flex flex-col items-center justify-center h-auto px-2 py-1 hover:bg-transparent"
               onClick={handleHangupClick}
               onMouseLeave={() => setConfirmHangup(false)}
             >
               <div className="bg-destructive hover:bg-destructive/90 rounded-full p-4 transition-colors">
                 {confirmHangup ? (
-                  <Check className="w-6 h-6 text-destructive-foreground"/>
+                  <Check className="w-7 h-7 text-destructive-foreground"/>
                 ) : (
-                  <PhoneOff className="w-6 h-6 text-destructive-foreground"/>
+                  <PhoneOff className="w-7 h-7 text-destructive-foreground"/>
                 )}
               </div>
-              <span className="mt-2 text-xs">{confirmHangup ? 'Confirm' : 'Hang Up'}</span>
+              <span className="mt-1 text-xs">{confirmHangup ? 'Confirm' : 'Hang Up'}</span>
             </Button>
           ) : null }
 
           {isCalling && (
             <>
-            <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-3 py-2 disabled:opacity-50 hover:bg-transparent hover:text-current" onClick={toggleMute} disabled={!isConnected}>
+            <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 disabled:opacity-50 hover:bg-transparent hover:text-current" onClick={toggleMute} disabled={!isConnected}>
                 <div className="bg-secondary rounded-full p-4">
-                    {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+                    {isMuted ? <MicOff className="w-7 h-7" /> : <Mic className="w-7 h-7" />}
                 </div>
-                <span className={cn('mt-2 text-xs', !isConnected ? 'text-muted-foreground' : '')}>{isMuted ? 'Unmute' : 'Mute'}</span>
+                <span className={cn('mt-1 text-xs', !isConnected ? 'text-muted-foreground' : '')}>{isMuted ? 'Unmute' : 'Mute'}</span>
             </Button>
 
-            <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-3 py-2 disabled:opacity-50 hover:bg-transparent hover:text-current" onClick={handleAddFriend} disabled={!isConnected || friendRequestSent}>
+            <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 disabled:opacity-50 hover:bg-transparent hover:text-current" onClick={handleAddFriend} disabled={!isConnected || friendRequestSent}>
                 <div className="bg-secondary rounded-full p-4">
-                    <UserPlus className="w-6 h-6"/>
+                    <UserPlus className="w-7 h-7"/>
                 </div>
-                <span className={cn('mt-2 text-xs', !isConnected ? 'text-muted-foreground' : '')}>{friendRequestSent ? 'Sent' : 'Add Friend'}</span>
+                <span className={cn('mt-1 text-xs', !isConnected ? 'text-muted-foreground' : '')}>{friendRequestSent ? 'Sent' : 'Add Friend'}</span>
             </Button>
 
-            <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-3 py-2 disabled:opacity-50 hover:bg-transparent hover:text-current" onClick={() => setReportDialogOpen(true)} disabled={!isConnected}>
+            <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 disabled:opacity-50 hover:bg-transparent hover:text-current" onClick={() => setReportDialogOpen(true)} disabled={!isConnected}>
                 <div className="bg-secondary rounded-full p-4">
-                    <ShieldAlert className="w-6 h-6"/>
+                    <ShieldAlert className="w-7 h-7"/>
                 </div>
-                <span className={cn('mt-2 text-xs', !isConnected ? 'text-muted-foreground' : '')}>Report</span>
+                <span className={cn('mt-1 text-xs', !isConnected ? 'text-muted-foreground' : '')}>Report</span>
             </Button>
             </>
           )}
         </div>
-
-        {!isCalling && !showNextCallUI && renderIdleControls()}
         
       </div>
     );
@@ -220,10 +213,10 @@ export function VoiceChat() {
   return (
     <>
     <Card className="w-full max-w-sm shadow-2xl">
-      <CardContent className="p-0">
-        <div className="flex flex-col items-center justify-center p-4 gap-1">
+      <CardContent className="p-2">
+        <div className="flex flex-col items-center justify-center p-2 gap-2">
             <div className={cn(
-                "w-40 h-40 rounded-full border-4 flex flex-col items-center justify-center transition-colors duration-500",
+                "w-48 h-48 rounded-full border-4 flex flex-col items-center justify-center transition-colors duration-500",
                 callState === 'connected' ? 'border-green-500' : 'border-primary'
             )}>
                 {renderCircleContent()}
@@ -231,8 +224,8 @@ export function VoiceChat() {
             <div className="flex items-center justify-center w-full">
                 {renderControls()}
             </div>
-            {showNextCallUI && callState === 'idle' && (
-              <p className="text-red-500 text-sm mt-2">Your partner has ended the call</p>
+            {showDisconnectedMessage && callState === 'idle' && (
+              <p className="text-red-500 text-sm">Your partner has ended the call</p>
             )}
         </div>
       </CardContent>
