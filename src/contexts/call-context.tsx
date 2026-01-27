@@ -98,10 +98,12 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         setRemoteStream(null);
         
         if (callIdRef.current && firestore) {
-            const roomRef = doc(firestore, 'rooms', callIdRef.current);
             try {
-                // No need to wait for deletion, just fire and forget
-                deleteDoc(roomRef);
+                const roomRef = doc(firestore, 'rooms', callIdRef.current);
+                const roomSnapshot = await getDoc(roomRef);
+                if (roomSnapshot.exists()) {
+                    await deleteDoc(roomRef);
+                }
             } catch (error) {
                 console.error("Error cleaning up call room:", error);
             }
@@ -146,7 +148,10 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
                 setCallState('incoming');
             }
         });
-        return () => unsubscribe();
+        unsubscribers.current.push(unsubscribe);
+        return () => {
+            unsubscribers.current.forEach(unsub => unsub());
+        }
     }, [firestore, user, callState]);
 
     const setupPeerConnection = useCallback(async () => {
@@ -220,24 +225,28 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         };
         await setDoc(callDocRef, callData);
 
-        // Timeout for unanswered calls
         endCallTimer.current = setTimeout(() => {
-            if(callState !== 'connected') {
-                toast({ variant: 'destructive', title: 'Call unanswered', description: 'The other user did not respond.' });
+            if (callStateRef.current !== 'connected') {
+                toast({ variant: 'destructive', title: 'Call unanswered' });
                 hangup();
             }
         }, 30000);
 
         const unsub1 = onSnapshot(callDocRef, (snapshot) => {
+            if (!snapshot.exists()) {
+                if (callStateRef.current !== 'idle') {
+                    toast({ variant: 'destructive', title: 'Call Ended', description: 'The other user disconnected.' });
+                    hangup();
+                }
+                return;
+            }
+
             const data = snapshot.data();
             if (data?.answer && pc.current && !pc.current.currentRemoteDescription) {
                 pc.current.setRemoteDescription(new RTCSessionDescription(data.answer));
             }
             if (data?.friendRequest) {
                 handleFriendRequest(data.friendRequest);
-            }
-            if (!snapshot.exists() && callState !== 'idle') {
-                hangup();
             }
         });
 
@@ -258,17 +267,14 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         setCallState('searching');
 
         const roomsRef = collection(firestore, 'rooms');
-        // Simplified query to avoid needing a composite index.
         const q = query(roomsRef, where('calleeId', '==', null), where('answered', '==', false));
         const querySnapshot = await getDocs(q);
 
-        // Client-side filtering to find a room from a different user
         const availableRooms = querySnapshot.docs
             .map(doc => ({ id: doc.id, data: doc.data() }))
             .filter(room => room.data.callerId !== user.id);
 
         if (availableRooms.length > 0) {
-            // Pick a random available room
             const randomRoom = availableRooms[Math.floor(Math.random() * availableRooms.length)];
             await joinCall(randomRoom.id, false);
         } else {
@@ -299,20 +305,26 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
          callTypeRef.current = isAccepting ? 'incoming' : 'random';
          setConnectedUser({id: roomData.callerId, name: roomData.callerName, avatar: roomData.callerAvatar});
          
-         await pc.current.setRemoteDescription(new RTCSessionDescription(roomData.offer));
+         const offerDescription = new RTCSessionDescription(roomData.offer);
+         await pc.current.setRemoteDescription(offerDescription);
+
          const answer = await pc.current.createAnswer();
          await pc.current.setLocalDescription(answer);
 
          await updateDoc(roomRef, { answer, calleeId: user.id, calleeName: user.name, calleeAvatar: user.avatar, answered: true });
 
          const unsub1 = onSnapshot(roomRef, (snapshot) => {
+            if (!snapshot.exists()) {
+                if (callStateRef.current !== 'idle') {
+                    toast({ variant: 'destructive', title: 'Call Ended', description: 'The other user disconnected.' });
+                    hangup();
+                }
+                return;
+            }
             const data = snapshot.data();
             if (data?.friendRequest) {
                 handleFriendRequest(data.friendRequest);
             }
-             if (!snapshot.exists() && callState !== 'idle') {
-                 hangup();
-             }
         });
 
          const unsub2 = onSnapshot(collection(roomRef, 'callerCandidates'), snapshot => {
@@ -353,12 +365,16 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             saveFriendToStorage(connectedUser);
             window.dispatchEvent(new Event('friends-updated'));
             toast({ title: 'Friend Request Accepted', description: `${connectedUser.name} accepted your friend request!`});
-            updateDoc(doc(firestore, 'rooms', callIdRef.current!), { friendRequest: null });
+            if (callIdRef.current) {
+                updateDoc(doc(firestore, 'rooms', callIdRef.current), { friendRequest: null });
+            }
         }
 
         if (request.from === user.id && request.status === 'rejected') {
             toast({ variant: 'destructive', title: 'Friend Request Declined', description: `${connectedUser.name} declined your friend request.`});
-            updateDoc(doc(firestore, 'rooms', callIdRef.current!), { friendRequest: null });
+            if (callIdRef.current) {
+                updateDoc(doc(firestore, 'rooms', callIdRef.current), { friendRequest: null });
+            }
         }
     };
 
@@ -396,6 +412,11 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         }
     };
     
+    const callStateRef = useRef(callState);
+    useEffect(() => {
+        callStateRef.current = callState;
+    }, [callState]);
+
     useEffect(() => {
         let interval: NodeJS.Timeout | null = null;
         if (callState === 'connected') {
