@@ -1,6 +1,5 @@
 "use client"
 
-import { useUser } from "@/firebase/auth/use-user"
 import { useCollection } from "@/firebase/firestore/use-collection"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -14,14 +13,17 @@ import { collection, doc, deleteDoc, query, where, getDocs } from "firebase/fire
 import { useMemo } from "react"
 import { useToast } from "@/hooks/use-toast"
 
-export function FriendsList() {
-  const { user } = useUser()
+interface FriendsListProps {
+  user: { id: string; name: string; avatar: string; };
+}
+
+export function FriendsList({ user }: FriendsListProps) {
   const firestore = useFirestore()
   const { toast } = useToast()
 
   const friendsQuery = useMemo(() => {
     if (!user || !firestore) return null
-    return collection(firestore, `users/${user.uid}/friends`);
+    return collection(firestore, `users/${user.id}/friends`);
   }, [user, firestore])
 
   const { data: friends, loading } = useCollection(friendsQuery);
@@ -38,11 +40,11 @@ export function FriendsList() {
     if (!user || !firestore) return;
     try {
       // Find the specific friend document to delete
-      const friendQuery = query(collection(firestore, `users/${user.uid}/friends`), where("friendId", "==", friendId));
+      const friendQuery = query(collection(firestore, `users/${user.id}/friends`), where("friendId", "==", friendId));
       const querySnapshot = await getDocs(friendQuery);
       if (!querySnapshot.empty) {
         const friendDoc = querySnapshot.docs[0];
-        await deleteDoc(doc(firestore, `users/${user.uid}/friends`, friendDoc.id))
+        await deleteDoc(doc(firestore, `users/${user.id}/friends`, friendDoc.id))
         toast({
           title: "Friend removed",
           description: "The user has been removed from your friends list.",

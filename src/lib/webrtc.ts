@@ -15,7 +15,12 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { type Firestore } from "firebase/firestore";
-import { type User } from "firebase/auth";
+
+type AppUser = {
+    id: string;
+    name: string;
+    avatar: string;
+}
 
 const servers = {
   iceServers: [
@@ -34,7 +39,7 @@ let onHangupCallback: (() => void) | null = null;
 
 export async function createOrJoinRoom(
   firestore: Firestore,
-  user: User,
+  user: AppUser,
   onConnected: (peer: any, callId: string) => void,
   onHangup: () => void,
   localVideoRef: React.RefObject<HTMLAudioElement>,
@@ -49,13 +54,18 @@ export async function createOrJoinRoom(
         await createRoom(firestore, user, onConnected, localVideoRef, remoteVideoRef);
     } else {
         const room = snapshot.docs[0];
+        if (room.data().callerId === user.id) {
+            // Avoid connecting to self
+            await createRoom(firestore, user, onConnected, localVideoRef, remoteVideoRef);
+            return;
+        }
         await joinRoom(firestore, user, room.id, onConnected, localVideoRef, remoteVideoRef);
     }
 }
 
 async function createRoom(
   firestore: Firestore,
-  user: User,
+  user: AppUser,
   onConnected: (peer: any, callId: string) => void,
   localVideoRef: React.RefObject<HTMLAudioElement>,
   remoteVideoRef: React.RefObject<HTMLAudioElement>
@@ -91,9 +101,9 @@ async function createRoom(
       type: offer.type,
       sdp: offer.sdp,
     },
-    callerId: user.uid,
-    callerName: user.displayName,
-    callerAvatar: user.photoURL,
+    callerId: user.id,
+    callerName: user.name,
+    callerAvatar: user.avatar,
     createdAt: serverTimestamp(),
     answered: false,
   };
@@ -104,6 +114,7 @@ async function createRoom(
     if (!pc?.currentRemoteDescription && data?.answer) {
       const answerDescription = new RTCSessionDescription(data.answer);
       pc?.setRemoteDescription(answerDescription);
+      onConnected({id: data.calleeId, name: data.calleeName, avatar: data.calleeAvatar}, callId!);
     }
   });
 
@@ -126,7 +137,7 @@ async function createRoom(
 
 async function joinRoom(
   firestore: Firestore,
-  user: User,
+  user: AppUser,
   roomId: string,
   onConnected: (peer: any, callId:string) => void,
   localVideoRef: React.RefObject<HTMLAudioElement>,
@@ -172,6 +183,9 @@ async function joinRoom(
       type: answer.type,
       sdp: answer.sdp,
     },
+    calleeId: user.id,
+    calleeName: user.name,
+    calleeAvatar: user.avatar,
     answered: true,
   };
   await setDoc(roomRef, roomWithAnswer, { merge: true });

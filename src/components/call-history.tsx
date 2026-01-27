@@ -1,6 +1,5 @@
 "use client"
 
-import { useUser } from "@/firebase/auth/use-user"
 import { useCollection } from "@/firebase/firestore/use-collection"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,14 +13,17 @@ import { collection, query, orderBy } from "firebase/firestore"
 import { useMemo } from "react"
 import { formatDistanceToNow } from "date-fns"
 
-export function CallHistory() {
-  const { user } = useUser()
+interface CallHistoryProps {
+  user: { id: string; name: string; avatar: string; };
+}
+
+export function CallHistory({ user }: CallHistoryProps) {
   const firestore = useFirestore()
   const { toast } = useToast()
 
   const callsQuery = useMemo(() => {
     if (!user || !firestore) return null
-    return query(collection(firestore, `users/${user.uid}/calls`), orderBy("startedAt", "desc"));
+    return query(collection(firestore, `users/${user.id}/calls`), orderBy("startedAt", "desc"));
   }, [user, firestore])
 
   const { data: callHistory, loading } = useCollection(callsQuery)

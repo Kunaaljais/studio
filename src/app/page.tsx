@@ -1,17 +1,53 @@
 "use client";
 
-import { useUser } from "@/firebase/auth/use-user";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { VoiceChat } from "@/components/voice-chat"
-import { CallHistory } from "@/components/call-history"
-import { FriendsList } from "@/components/friends-list"
-import { MessageCircle, History, Users, Waves, Loader2 } from "lucide-react"
-import { Footer } from "@/components/footer"
+import { useState, useEffect } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { VoiceChat } from "@/components/voice-chat";
+import { CallHistory } from "@/components/call-history";
+import { FriendsList } from "@/components/friends-list";
+import { MessageCircle, History, Users, Waves, Loader2 } from "lucide-react";
+import { Footer } from "@/components/footer";
+import { useFirestore } from "@/firebase";
+import { generateRandomUser } from "@/lib/data";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+
+type AppUser = {
+  id: string;
+  name: string;
+  avatar: string;
+};
 
 export default function Home() {
-  const { user, loading } = useUser();
+  const firestore = useFirestore();
+  const [user, setUser] = useState<AppUser | null>(null);
 
-  if (loading || !user) {
+  useEffect(() => {
+    if (firestore && !user) {
+      const newUser = generateRandomUser();
+      const userRef = doc(firestore, "users", newUser.id);
+      
+      const userData = {
+        ...newUser,
+        online: true,
+        createdAt: serverTimestamp(),
+      };
+
+      setDoc(userRef, userData, { merge: true });
+      setUser(newUser);
+
+      const handleBeforeUnload = () => {
+        setDoc(userRef, { online: false }, { merge: true });
+      };
+      window.addEventListener("beforeunload", handleBeforeUnload);
+
+      return () => {
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+        setDoc(userRef, { online: false }, { merge: true });
+      };
+    }
+  }, [firestore, user]);
+
+  if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="w-16 h-16 animate-spin text-primary" />
@@ -41,17 +77,17 @@ export default function Home() {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="chat" className="mt-4">
-            <VoiceChat />
+            <VoiceChat user={user} />
           </TabsContent>
           <TabsContent value="history" className="mt-4">
-            <CallHistory />
+            <CallHistory user={user} />
           </TabsContent>
           <TabsContent value="friends" className="mt-4">
-            <FriendsList />
+            <FriendsList user={user} />
           </TabsContent>
         </Tabs>
       </main>
       <Footer />
     </div>
-  )
+  );
 }

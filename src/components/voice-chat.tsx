@@ -21,7 +21,6 @@ import { Separator } from "@/components/ui/separator"
 import { ReportDialog } from "@/components/report-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import { useUser } from "@/firebase/auth/use-user"
 import { useFirestore } from "@/firebase"
 import * as webrtc from "@/lib/webrtc"
 import { collection, addDoc, serverTimestamp, doc, setDoc } from "firebase/firestore"
@@ -29,8 +28,11 @@ import { collection, addDoc, serverTimestamp, doc, setDoc } from "firebase/fires
 type CallState = "idle" | "searching" | "connecting" | "in-call" | "call-ended"
 type User = { id: string; name: string; avatar: string }
 
-export function VoiceChat() {
-  const { user } = useUser()
+interface VoiceChatProps {
+  user: User;
+}
+
+export function VoiceChat({ user }: VoiceChatProps) {
   const firestore = useFirestore()
   const [callState, setCallState] = useState<CallState>("idle")
   const [isMuted, setIsMuted] = useState(false)
@@ -54,6 +56,27 @@ export function VoiceChat() {
     return `${mins}:${secs}`
   }
 
+  const handleHangUp = useCallback(async () => {
+    if(callIdRef.current && firestore && user && connectedUser && startTimeRef.current) {
+        const duration = Math.floor((new Date().getTime() - startTimeRef.current.getTime()) / 1000);
+        const callData = {
+            callerId: user.id,
+            callerName: user.name,
+            callerAvatar: user.avatar,
+            calleeId: connectedUser.id,
+            calleeName: connectedUser.name,
+            calleeAvatar: connectedUser.avatar,
+            startedAt: serverTimestamp(),
+            duration: duration,
+        };
+        await addDoc(collection(firestore, `users/${user.id}/calls`), callData);
+        await addDoc(collection(firestore, `users/${connectedUser.id}/calls`), callData);
+    }
+    
+    webrtc.hangup(callIdRef.current);
+    setCallState("call-ended")
+  }, [firestore, user, connectedUser])
+
   const startConnecting = useCallback(async () => {
     if (!firestore || !user) return;
     setCallState("searching")
@@ -72,28 +95,8 @@ export function VoiceChat() {
     
     await webrtc.createOrJoinRoom(firestore, user, onConnected, onHangup, localVideoRef, remoteVideoRef);
 
-  }, [firestore, user])
+  }, [firestore, user, handleHangUp])
 
-  const handleHangUp = useCallback(async () => {
-    if(callIdRef.current && firestore && user && connectedUser && startTimeRef.current) {
-        const duration = Math.floor((new Date().getTime() - startTimeRef.current.getTime()) / 1000);
-        const callData = {
-            callerId: user.uid,
-            callerName: user.displayName,
-            callerAvatar: user.photoURL,
-            calleeId: connectedUser.id,
-            calleeName: connectedUser.name,
-            calleeAvatar: connectedUser.avatar,
-            startedAt: serverTimestamp(),
-            duration: duration,
-        };
-        await addDoc(collection(firestore, `users/${user.uid}/calls`), callData);
-        await addDoc(collection(firestore, `users/${connectedUser.id}/calls`), callData);
-    }
-    
-    webrtc.hangup(callIdRef.current);
-    setCallState("call-ended")
-  }, [firestore, user, connectedUser])
   
   useEffect(() => {
     let callTimeout: NodeJS.Timeout
@@ -122,18 +125,18 @@ export function VoiceChat() {
   const handleAddFriend = async () => {
     if(!user || !firestore || !connectedUser) return;
     try {
-        await setDoc(doc(firestore, `users/${user.uid}/friends`, connectedUser.id), {
+        await setDoc(doc(firestore, `users/${user.id}/friends`, connectedUser.id), {
             friendId: connectedUser.id,
             createdAt: serverTimestamp(),
         });
-        await setDoc(doc(firestore, `users/${connectedUser.id}/friends`, user.uid), {
-            friendId: user.uid,
+        await setDoc(doc(firestore, `users/${connectedUser.id}/friends`, user.id), {
+            friendId: user.id,
             createdAt: serverTimestamp(),
         });
 
         toast({
-        title: "Friend Request Sent",
-        description: `Your friend request to ${connectedUser?.name} has been sent.`,
+        title: "Friend Added",
+        description: `${connectedUser?.name} has been added to your friends list.`,
         })
     } catch (e) {
         console.error("Error adding friend: ", e)
