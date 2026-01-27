@@ -12,6 +12,7 @@ import { useFirestore } from "@/firebase"
 import { collection, doc, deleteDoc, query, where, getDocs } from "firebase/firestore"
 import { useMemo } from "react"
 import { useToast } from "@/hooks/use-toast"
+import { useCall } from "@/contexts/call-context"
 
 interface FriendsListProps {
   user: { id: string; name: string; avatar: string; };
@@ -20,6 +21,7 @@ interface FriendsListProps {
 export function FriendsList({ user }: FriendsListProps) {
   const firestore = useFirestore()
   const { toast } = useToast()
+  const { startCall, callState } = useCall();
 
   const friendsQuery = useMemo(() => {
     if (!user || !firestore) return null
@@ -39,7 +41,6 @@ export function FriendsList({ user }: FriendsListProps) {
   const handleRemoveFriend = async (friendId: string) => {
     if (!user || !firestore) return;
     try {
-      // Find the specific friend document to delete
       const friendQuery = query(collection(firestore, `users/${user.id}/friends`), where("friendId", "==", friendId));
       const querySnapshot = await getDocs(friendQuery);
       if (!querySnapshot.empty) {
@@ -58,6 +59,10 @@ export function FriendsList({ user }: FriendsListProps) {
         description: "Could not remove friend. Please try again.",
       })
     }
+  }
+  
+  const handleCall = (friend: any) => {
+      startCall(friend);
   }
 
   const isLoading = loading || profilesLoading;
@@ -107,7 +112,7 @@ export function FriendsList({ user }: FriendsListProps) {
                       <p className="text-sm text-muted-foreground">{friend.online ? "Online" : "Offline"}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="icon" disabled={!friend.online}>
+                      <Button variant="ghost" size="icon" disabled={!friend.online || callState !== 'idle'} onClick={() => handleCall(friend)}>
                         <Phone className="w-4 h-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleRemoveFriend(friend.id)}>
