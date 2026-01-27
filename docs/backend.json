@@ -56,14 +56,6 @@
         },
         "answered": {
             "type": "boolean"
-        },
-        "friendRequest": {
-            "type": "object",
-            "properties": {
-                "from": { "type": "string" },
-                "to": { "type": "string" },
-                "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] }
-            }
         }
       }
     },
@@ -113,6 +105,22 @@
         }
       },
       "required": ["candidate", "sdpMid", "sdpMLineIndex"]
+    },
+    "friendRequest": {
+      "title": "Friend Request",
+      "description": "A request from one user to befriend another.",
+      "type": "object",
+      "properties": {
+        "fromId": { "type": "string" },
+        "fromName": { "type": "string" },
+        "fromAvatar": { "type": "string" },
+        "toId": { "type": "string" },
+        "toName": { "type": "string" },
+        "toAvatar": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fromId", "fromName", "toId", "toName", "status", "createdAt"]
     }
   },
   "auth": {
@@ -142,6 +150,12 @@
         "$ref": "#/backend/entities/iceCandidate"
       },
       "description": "ICE candidates from the callee."
+    },
+    "/friendRequests/{requestId}": {
+      "schema": {
+        "$ref": "#/backend/entities/friendRequest"
+      },
+      "description": "Friend requests between users."
     }
   }
 }

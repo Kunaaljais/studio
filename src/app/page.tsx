@@ -10,7 +10,6 @@ import { Footer } from "@/components/footer";
 import { CallProvider, useCall } from "@/contexts/call-context";
 import { IncomingCallDialog } from "@/components/incoming-call-dialog";
 import { useUser } from '@/contexts/user-context';
-import { FriendRequestDialog } from "@/components/friend-request-dialog";
 
 function App() {
   const user = useUser();
@@ -42,7 +41,6 @@ function App() {
   return (
     <>
       <IncomingCallDialog />
-      <FriendRequestDialog />
       <audio ref={localAudioRef} autoPlay playsInline muted style={{ display: 'none' }} />
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
       <div className="flex flex-col items-center min-h-screen bg-background text-foreground p-4 sm:p-6 md:p-8">
