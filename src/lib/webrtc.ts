@@ -26,7 +26,7 @@ const servers = {
   iceCandidatePoolSize: 10,
 };
 
-let pc: RTCPeerConnection | null = new RTCPeerConnection(servers);
+let pc: RTCPeerConnection | null = null;
 let localStream: MediaStream | null = null;
 let remoteStream: MediaStream | null = null;
 let callId: string | null = null;
@@ -60,6 +60,7 @@ async function createRoom(
   localVideoRef: React.RefObject<HTMLAudioElement>,
   remoteVideoRef: React.RefObject<HTMLAudioElement>
 ) {
+  pc = new RTCPeerConnection(servers);
   const roomRef = doc(collection(firestore, "rooms"));
   callId = roomRef.id;
 
@@ -135,6 +136,7 @@ async function joinRoom(
   const roomSnapshot = await getDoc(roomRef);
   if (!roomSnapshot.exists()) return;
   
+  pc = new RTCPeerConnection(servers);
   callId = roomId;
 
   await setupStreams(localVideoRef, remoteVideoRef);
@@ -212,7 +214,7 @@ async function setupStreams(
 export async function hangup(currentCallId: string | null) {
   if (pc) {
     pc.close();
-    pc = new RTCPeerConnection(servers);
+    pc = null;
   }
   if (localStream) {
     localStream.getTracks().forEach((track) => track.stop());
