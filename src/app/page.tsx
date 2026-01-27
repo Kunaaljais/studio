@@ -10,16 +10,14 @@ import { Footer } from "@/components/footer";
 import { CallProvider, useCall } from "@/contexts/call-context";
 import { IncomingCallDialog } from "@/components/incoming-call-dialog";
 import { useUser } from '@/contexts/user-context';
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { FriendRequestDialog } from "@/components/friend-request-dialog";
 
 function App() {
   const user = useUser();
-  const { callState, localStream, remoteStream, incomingFriendRequest, acceptFriendRequest, rejectFriendRequest, setIncomingFriendRequest } = useCall();
+  const { callState, localStream, remoteStream } = useCall();
   const [activeTab, setActiveTab] = useState("chat");
   const localAudioRef = useRef<HTMLAudioElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
-  const { toast } = useToast();
 
   useEffect(() => {
     if (localAudioRef.current && localStream) {
@@ -39,34 +37,12 @@ function App() {
     }
   }, [callState]);
   
-  useEffect(() => {
-    if (incomingFriendRequest) {
-      const { from } = incomingFriendRequest;
-      toast({
-        title: "Friend Request",
-        description: `${from.name} wants to be your friend.`,
-        action: (
-          <div className="flex gap-2 mt-2">
-            <Button size="sm" onClick={() => acceptFriendRequest()}>Accept</Button>
-            <Button size="sm" variant="outline" onClick={() => rejectFriendRequest()}>Decline</Button>
-          </div>
-        ),
-        duration: 30000,
-        onOpenChange: (open) => {
-            if(!open) {
-                rejectFriendRequest();
-                setIncomingFriendRequest(null);
-            }
-        }
-      });
-    }
-  }, [incomingFriendRequest, acceptFriendRequest, rejectFriendRequest, setIncomingFriendRequest, toast]);
-
   if (!user) return null;
 
   return (
     <>
       <IncomingCallDialog />
+      <FriendRequestDialog />
       <audio ref={localAudioRef} autoPlay playsInline muted style={{ display: 'none' }} />
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
       <div className="flex flex-col items-center min-h-screen bg-background text-foreground p-4 sm:p-6 md:p-8">

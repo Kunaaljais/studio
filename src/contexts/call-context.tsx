@@ -151,15 +151,11 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
     const setupPeerConnection = useCallback(async (stream: MediaStream) => {
         pc.current = new RTCPeerConnection(servers);
 
-        const newRemoteStream = new MediaStream();
-        setRemoteStream(newRemoteStream);
-
         stream.getTracks().forEach(track => pc.current!.addTrack(track, stream));
         
         pc.current.ontrack = event => {
-            event.streams[0].getTracks().forEach(track => {
-                newRemoteStream.addTrack(track);
-            });
+            const [remoteStream] = event.streams;
+            setRemoteStream(remoteStream);
         };
         
         pc.current.onconnectionstatechange = () => {
@@ -251,13 +247,20 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
          setCallState('searching');
 
          const roomsRef = collection(firestore, 'rooms');
-         const q = query(roomsRef, where('calleeId', '==', null), where('callerId', '!=', user.id), orderBy('createdAt', 'desc'), limit(1));
+         // Simplified query
+         const q = query(roomsRef, where('calleeId', '==', null), where('callerId', '!=', user.id), orderBy('createdAt', 'desc'));
          const querySnapshot = await getDocs(q);
 
          if (querySnapshot.empty) {
              await createCall(); // Become a caller
          } else {
-             await joinCall(querySnapshot.docs[0].id); // Become a callee
+             // Find a room that isn't ours
+             const docToJoin = querySnapshot.docs.find(doc => doc.data().callerId !== user.id);
+             if (docToJoin) {
+                await joinCall(docToJoin.id); // Become a callee
+             } else {
+                await createCall();
+             }
          }
     };
     

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   Mic,
   MicOff,
@@ -18,6 +18,8 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { useCall } from "@/contexts/call-context"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 
 const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -30,12 +32,21 @@ export function VoiceChat() {
   const { toast } = useToast();
   const [isReportDialogOpen, setReportDialogOpen] = useState(false);
   const [friendRequestSent, setFriendRequestSent] = useState(false);
+  const [autoCall, setAutoCall] = useState(false);
+  const prevCallState = useRef(callState);
 
   useEffect(() => {
     if (callState !== 'connected') {
         setFriendRequestSent(false);
     }
   }, [callState]);
+
+  useEffect(() => {
+    if ( (prevCallState.current === 'connected') && callState === 'idle' && autoCall) {
+        findRandomCall();
+    }
+    prevCallState.current = callState;
+  }, [callState, autoCall, findRandomCall]);
 
   const handleAddFriend = () => {
     if(!connectedUser) return;
@@ -57,6 +68,10 @@ export function VoiceChat() {
             <Button onClick={findRandomCall}>
               <MessageCircle className="mr-2" /> Find a random chat
             </Button>
+            <div className="flex items-center space-x-2 mt-6">
+                <Checkbox id="auto-call" checked={autoCall} onCheckedChange={(checked) => setAutoCall(!!checked)} />
+                <Label htmlFor="auto-call" className="text-muted-foreground">Automatically find next chat</Label>
+            </div>
           </div>
         );
       case "searching":
