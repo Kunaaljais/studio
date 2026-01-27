@@ -71,12 +71,18 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
     const callTypeRef = useRef<'incoming' | 'outgoing' | 'random' | null>(null);
     const endCallTimer = useRef<NodeJS.Timeout | null>(null);
 
+    // Unsubscribe listeners
+    const unsubscribers = useRef<(() => void)[]>([]);
+
     const cleanupCall = useCallback(async () => {
         if (endCallTimer.current) {
             clearTimeout(endCallTimer.current);
             endCallTimer.current = null;
         }
         
+        unsubscribers.current.forEach(unsubscribe => unsubscribe());
+        unsubscribers.current = [];
+
         if (pc.current) {
             pc.current.ontrack = null;
             pc.current.onicecandidate = null;
@@ -144,12 +150,16 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
     }, [firestore, user, callState]);
 
     const setupPeerConnection = useCallback(async () => {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        
+        // Ensure cleanup of any previous PC
+        if (pc.current) {
+          pc.current.close();
+        }
         pc.current = new RTCPeerConnection(servers);
-
-        stream.getTracks().forEach(track => pc.current!.addTrack(track, stream));
+        
+        // Setup media streams
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         setLocalStream(stream);
+        stream.getTracks().forEach(track => pc.current!.addTrack(track, stream));
 
         const remote = new MediaStream();
         setRemoteStream(remote);
@@ -218,7 +228,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             }
         }, 30000);
 
-        onSnapshot(callDocRef, (snapshot) => {
+        const unsub1 = onSnapshot(callDocRef, (snapshot) => {
             const data = snapshot.data();
             if (data?.answer && pc.current && !pc.current.currentRemoteDescription) {
                 pc.current.setRemoteDescription(new RTCSessionDescription(data.answer));
@@ -231,13 +241,14 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             }
         });
 
-        onSnapshot(collection(callDocRef, 'calleeCandidates'), snapshot => {
+        const unsub2 = onSnapshot(collection(callDocRef, 'calleeCandidates'), snapshot => {
             snapshot.docChanges().forEach(change => {
                 if (change.type === 'added') {
                     pc.current?.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                 }
             });
         });
+        unsubscribers.current.push(unsub1, unsub2);
     };
 
     const startCall = (callee: AppUser) => createCall(callee);
@@ -294,7 +305,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
 
          await updateDoc(roomRef, { answer, calleeId: user.id, calleeName: user.name, calleeAvatar: user.avatar, answered: true });
 
-         onSnapshot(roomRef, (snapshot) => {
+         const unsub1 = onSnapshot(roomRef, (snapshot) => {
             const data = snapshot.data();
             if (data?.friendRequest) {
                 handleFriendRequest(data.friendRequest);
@@ -304,13 +315,14 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
              }
         });
 
-         onSnapshot(collection(roomRef, 'callerCandidates'), snapshot => {
+         const unsub2 = onSnapshot(collection(roomRef, 'callerCandidates'), snapshot => {
              snapshot.docChanges().forEach(change => {
                  if (change.type === 'added') {
                      pc.current?.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                  }
              });
          });
+         unsubscribers.current.push(unsub1, unsub2);
          
          if (isAccepting) {
             setIncomingCall(null);
