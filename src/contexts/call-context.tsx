@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useState, useEffect, useRef, useCallback, PropsWithChildren, Dispatch, SetStateAction } from 'react';
 import { useFirestore } from '@/firebase';
-import { collection, query, where, onSnapshot, doc, addDoc, serverTimestamp, getDoc, updateDoc, getDocs, deleteDoc, limit, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, addDoc, setDoc, serverTimestamp, getDoc, updateDoc, getDocs, deleteDoc, limit, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { saveFriendToStorage, saveCallToStorage } from '@/lib/local-storage';
 
