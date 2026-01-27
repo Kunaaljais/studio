@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useState, useEffect, useRef, useCallback, PropsWithChildren, Dispatch, SetStateAction } from 'react';
 import { useFirestore } from '@/firebase';
-import { collection, query, where, onSnapshot, doc, addDoc, setDoc, serverTimestamp, getDoc, updateDoc, getDocs, deleteDoc, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, addDoc, setDoc, serverTimestamp, getDoc, updateDoc, getDocs, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { saveFriendToStorage, saveCallToStorage } from '@/lib/local-storage';
 
@@ -247,13 +247,19 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         setCallState('searching');
 
         const roomsRef = collection(firestore, 'rooms');
-        const q = query(roomsRef, where('calleeId', '==', null), where('answered', '==', false), orderBy('createdAt', 'desc'));
+        // Simplified query to avoid needing a composite index.
+        const q = query(roomsRef, where('calleeId', '==', null), where('answered', '==', false));
         const querySnapshot = await getDocs(q);
 
-        const availableRoom = querySnapshot.docs.find(doc => doc.data().callerId !== user.id);
+        // Client-side filtering to find a room from a different user
+        const availableRooms = querySnapshot.docs
+            .map(doc => ({ id: doc.id, data: doc.data() }))
+            .filter(room => room.data.callerId !== user.id);
 
-        if (availableRoom) {
-            await joinCall(availableRoom.id, false);
+        if (availableRooms.length > 0) {
+            // Pick a random available room
+            const randomRoom = availableRooms[Math.floor(Math.random() * availableRooms.length)];
+            await joinCall(randomRoom.id, false);
         } else {
             await createCall();
         }
