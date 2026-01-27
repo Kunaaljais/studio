@@ -53,6 +53,17 @@ function App() {
         </header>
         <main className="w-full max-w-lg md:max-w-xl mx-auto flex-1 flex flex-col">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+             <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="chat" className="gap-2">
+                <MessageCircle /> Chat
+              </TabsTrigger>
+              <TabsTrigger value="history" className="gap-2">
+                <History /> History
+              </TabsTrigger>
+              <TabsTrigger value="friends" className="gap-2">
+                <Users /> Friends
+              </TabsTrigger>
+            </TabsList>
             <TabsContent value="chat" className="mt-4">
               <VoiceChat />
             </TabsContent>
