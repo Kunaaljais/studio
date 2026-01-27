@@ -48,7 +48,7 @@ function App() {
         <header className="flex items-center gap-2 mb-6 sm:mb-8">
           <Waves className="w-8 h-8 text-primary" />
           <h1 className="text-2xl sm:text-3xl font-bold text-primary-foreground font-headline">
-            RandomTalk
+            RandomTalk.online
           </h1>
         </header>
         <main className="w-full max-w-lg md:max-w-xl mx-auto flex-1 flex flex-col justify-start items-center">

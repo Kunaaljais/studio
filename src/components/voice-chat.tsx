@@ -166,25 +166,30 @@ export function VoiceChat() {
         </div>
 
         <div className="flex justify-center items-start">
-          {isCalling ? (
-            <Button
-              variant="ghost"
-              className="flex flex-col items-center justify-center h-auto px-2 py-1 hover:bg-transparent"
-              onClick={handleHangupClick}
-            >
-              <div className="bg-destructive hover:bg-red-600 rounded-full p-4 transition-colors">
-                {confirmHangup ? (
-                  <Check className="w-7 h-7 text-destructive-foreground"/>
-                ) : (
-                  <PhoneOff className="w-7 h-7 text-destructive-foreground"/>
-                )}
-              </div>
-              <span className="mt-1 text-xs text-foreground">{confirmHangup ? 'Confirm' : 'Hang Up'}</span>
-            </Button>
-          ) : null }
+            {callState === 'connected' ? (
+                <Button
+                variant="ghost"
+                className="flex flex-col items-center justify-center h-auto px-2 py-1 hover:bg-transparent"
+                onClick={handleHangupClick}
+                >
+                <div className="bg-destructive hover:bg-red-600 rounded-full p-4 transition-colors">
+                    {confirmHangup ? (
+                    <Check className="w-7 h-7 text-destructive-foreground"/>
+                    ) : (
+                    <PhoneOff className="w-7 h-7 text-destructive-foreground"/>
+                    )}
+                </div>
+                <span className="mt-1 text-xs text-foreground">{confirmHangup ? 'Confirm' : 'Hang Up'}</span>
+                </Button>
+            ) : (callState === 'searching' || callState === 'outgoing') ? (
+                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 hover:bg-transparent" disabled>
+                    <div className="rounded-full p-4">
+                        <Loader2 className="w-7 h-7 animate-spin text-primary" />
+                    </div>
+                    <span className="mt-1 text-xs text-muted-foreground">&nbsp;</span>
+                </Button>
+            ) : null}
 
-          {isCalling && (
-            <>
             <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 disabled:opacity-50 hover:bg-transparent hover:text-current" onClick={toggleMute} disabled={!isConnected}>
                 <div className={cn("rounded-full p-4 transition-colors", isConnected ? "bg-secondary hover:bg-secondary/80" : "bg-secondary")}>
                     {isMuted ? <MicOff className="w-7 h-7" /> : <Mic className="w-7 h-7" />}
@@ -205,8 +210,6 @@ export function VoiceChat() {
                 </div>
                 <span className={cn('mt-1 text-xs', !isConnected ? 'text-muted-foreground' : '')}>Report</span>
             </Button>
-            </>
-          )}
         </div>
         
       </div>

@@ -5,7 +5,7 @@ import { FirebaseProvider } from '@/firebase/provider';
 import { UserProvider } from '@/contexts/user-context';
 
 export const metadata: Metadata = {
-  title: 'RandomTalk Online',
+  title: 'RandomTalk.online',
   description: 'Connect with random people through voice chat.',
 };
 
