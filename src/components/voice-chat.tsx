@@ -10,6 +10,7 @@ import {
   Loader2,
   Waves,
   Phone,
+  RefreshCw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -19,6 +20,17 @@ import { cn } from "@/lib/utils"
 import { useCall } from "@/contexts/call-context"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -32,20 +44,36 @@ export function VoiceChat() {
   const [isReportDialogOpen, setReportDialogOpen] = useState(false);
   const [friendRequestSent, setFriendRequestSent] = useState(false);
   const [autoCall, setAutoCall] = useState(false);
+  const [showNextCallUI, setShowNextCallUI] = useState(false);
   const prevCallState = useRef(callState);
 
+  const handleNextCall = () => {
+    setShowNextCallUI(false);
+    findRandomCall();
+  };
+
   useEffect(() => {
+    // Show 'Next' UI when a call ends
+    if (prevCallState.current === 'connected' && callState === 'idle') {
+      setShowNextCallUI(true);
+    }
+    // Hide 'Next' UI when a new call starts
+    if (callState === 'searching' || callState === 'outgoing' || callState === 'connected') {
+      setShowNextCallUI(false);
+    }
+
     if (callState !== 'connected') {
         setFriendRequestSent(false);
     }
-  }, [callState]);
 
-  useEffect(() => {
-    if ( (prevCallState.current === 'connected') && callState === 'idle' && autoCall) {
-        findRandomCall();
+    // Handle auto-call logic
+    if ( (prevCallState.current === 'connected' || (showNextCallUI && prevCallState.current === 'idle') ) && callState === 'idle' && autoCall) {
+        handleNextCall();
     }
     prevCallState.current = callState;
-  }, [callState, autoCall, findRandomCall]);
+
+  }, [callState, autoCall, showNextCallUI]);
+
 
   const handleAddFriend = () => {
     if(!connectedUser) return;
@@ -66,6 +94,14 @@ export function VoiceChat() {
             return <p className="text-4xl font-mono text-primary-foreground">{formatTime(timer)}</p>;
         case 'idle':
         default:
+            if (showNextCallUI) {
+                return (
+                    <div className="flex flex-col items-center gap-2 text-center">
+                        <PhoneOff className="w-16 h-16 text-destructive" />
+                        <h2 className="text-xl font-bold text-primary-foreground">Call Ended</h2>
+                    </div>
+                )
+            }
             return (
                 <div className="flex flex-col items-center gap-2 text-center">
                     <Waves className="w-16 h-16 text-primary" />
@@ -79,6 +115,21 @@ export function VoiceChat() {
     const isCalling = callState !== 'idle';
     const isConnected = callState === 'connected';
 
+    if (showNextCallUI && callState === 'idle') {
+      return (
+        <div className="flex flex-col items-center justify-center text-center gap-6 w-full">
+            <p className="text-muted-foreground">User has disconnected.</p>
+            <Button onClick={handleNextCall}>
+                <RefreshCw className="mr-2 h-4 w-4" /> Next Call
+            </Button>
+            <div className="flex items-center space-x-2">
+              <Checkbox id="auto-call" checked={autoCall} onCheckedChange={(checked) => setAutoCall(!!checked)} />
+              <Label htmlFor="auto-call" className="text-muted-foreground">Enable Auto Call</Label>
+            </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center text-center gap-6 w-full">
         <div className="h-8">
@@ -88,23 +139,37 @@ export function VoiceChat() {
         </div>
 
         <div className="flex justify-center items-start gap-4">
-          <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-4 py-2" onClick={isCalling ? hangup : findRandomCall}>
-            {isCalling ? (
-              <>
-                <div className="bg-destructive rounded-full p-3">
-                  <PhoneOff className="w-6 h-6 text-destructive-foreground"/>
-                </div>
-                <span className="mt-1">Hang Up</span>
-              </>
-            ) : (
-              <>
+          {isCalling ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-4 py-2">
+                    <div className="bg-destructive rounded-full p-3">
+                        <PhoneOff className="w-6 h-6 text-destructive-foreground"/>
+                    </div>
+                    <span className="mt-1">Hang Up</span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                  <AlertDialogHeader>
+                  <AlertDialogTitle>End Call?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      Are you sure you want to end the current call?
+                  </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={hangup} className="bg-destructive hover:bg-destructive/90">Hang Up</AlertDialogAction>
+                  </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : (
+              <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-4 py-2" onClick={findRandomCall}>
                 <div className="bg-green-500 rounded-full p-3">
                   <Phone className="w-6 h-6 text-white"/>
                 </div>
                 <span className="mt-1">Call</span>
-              </>
-            )}
-          </Button>
+              </Button>
+          )}
 
           <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-4 py-2 disabled:opacity-50" onClick={toggleMute} disabled={!isConnected}>
             {isMuted ? <MicOff className="w-6 h-6 mb-1" /> : <Mic className="w-6 h-6 mb-1" />}
@@ -123,7 +188,7 @@ export function VoiceChat() {
         </div>
 
         {!isCalling && (
-          <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col items-center gap-4 mt-2">
             <div className="flex items-center space-x-2">
               <Checkbox id="auto-call" checked={autoCall} onCheckedChange={(checked) => setAutoCall(!!checked)} />
               <Label htmlFor="auto-call" className="text-muted-foreground">Enable Auto Call</Label>
@@ -146,7 +211,7 @@ export function VoiceChat() {
             )}>
                 {renderCircleContent()}
             </div>
-            <div className="h-36 flex items-center">
+            <div className="flex items-center justify-center min-h-[9rem] w-full">
                 {renderControls()}
             </div>
         </div>
