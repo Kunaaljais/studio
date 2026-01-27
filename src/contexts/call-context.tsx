@@ -143,13 +143,8 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
                 setCallState('incoming');
             }
         });
-        const unsubIndex = unsubscribers.current.length;
-        unsubscribers.current.push(unsubscribe);
 
-        return () => {
-            unsubscribers.current.splice(unsubIndex, 1);
-            unsubscribe();
-        }
+        return () => unsubscribe();
     }, [firestore, user]);
 
     // Listen for incoming friend requests
@@ -162,13 +157,8 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setFriendRequests(requests);
         });
-        const unsubIndex = unsubscribers.current.length;
-        unsubscribers.current.push(unsubscribe);
 
-        return () => {
-             unsubscribers.current.splice(unsubIndex, 1);
-             unsubscribe();
-        }
+        return () => unsubscribe();
     }, [firestore, user]);
 
     // Listen for updates on sent friend requests
@@ -194,13 +184,8 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
                 }
             });
         });
-        const unsubIndex = unsubscribers.current.length;
-        unsubscribers.current.push(unsubscribe);
         
-        return () => {
-            unsubscribers.current.splice(unsubIndex, 1);
-            unsubscribe();
-        };
+        return () => unsubscribe();
     }, [firestore, user, toast]);
 
     const setupPeerConnection = useCallback(async () => {
