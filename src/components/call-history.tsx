@@ -52,7 +52,6 @@ export function CallHistory() {
                       <div key={call.id}>
                           <div className="flex items-center gap-4">
                               <Avatar className="h-12 w-12">
-                              <AvatarImage src={call.user.avatar} alt={call.user.name} data-ai-hint="person portrait" />
                               <AvatarFallback>{call.user.name.charAt(0)}</AvatarFallback>
                               </Avatar>
                               <div className="flex-1">

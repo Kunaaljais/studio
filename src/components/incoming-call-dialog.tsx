@@ -10,7 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useCall } from "@/contexts/call-context"
 
 export function IncomingCallDialog() {
@@ -39,7 +39,6 @@ export function IncomingCallDialog() {
         </AlertDialogHeader>
         <div className="flex items-center justify-center gap-4 py-4">
           <Avatar className="h-24 w-24">
-            <AvatarImage src={incomingCall.caller.avatar} alt={incomingCall.caller.name} />
             <AvatarFallback>{incomingCall.caller.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <p className="text-lg font-semibold">{incomingCall.caller.name}</p>

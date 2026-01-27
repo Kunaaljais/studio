@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -126,7 +126,6 @@ export function FriendsList() {
                       <div className="flex items-center gap-4">
                         <div className="relative">
                           <Avatar className="h-12 w-12">
-                            <AvatarImage src={friend.avatar} alt={friend.name} data-ai-hint="person portrait" />
                             <AvatarFallback>{friend.name.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <span className={cn(
@@ -183,7 +182,6 @@ export function FriendsList() {
                           <div key={req.id}>
                               <div className="flex items-center gap-4">
                                   <Avatar className="h-12 w-12">
-                                      <AvatarImage src={req.fromAvatar} alt={req.fromName} data-ai-hint="person portrait" />
                                       <AvatarFallback>{req.fromName.charAt(0)}</AvatarFallback>
                                   </Avatar>
                                   <div className="flex-1">
