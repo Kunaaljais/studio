@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import Image from "next/image"
+import { useState, useEffect, useCallback, useRef } from "react"
 import {
   Mic,
   MicOff,
@@ -13,7 +12,6 @@ import {
   X,
   RefreshCw,
 } from "lucide-react"
-
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -21,14 +19,19 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { ReportDialog } from "@/components/report-dialog"
-import { generateRandomUser } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { useUser } from "@/firebase/auth/use-user"
+import { useFirestore } from "@/firebase"
+import * as webrtc from "@/lib/webrtc"
+import { collection, addDoc, serverTimestamp, doc, setDoc } from "firebase/firestore"
 
-type CallState = "idle" | "connecting" | "in-call" | "call-ended"
+type CallState = "idle" | "searching" | "connecting" | "in-call" | "call-ended"
 type User = { id: string; name: string; avatar: string }
 
 export function VoiceChat() {
+  const { user } = useUser()
+  const firestore = useFirestore()
   const [callState, setCallState] = useState<CallState>("idle")
   const [isMuted, setIsMuted] = useState(false)
   const [autoCall, setAutoCall] = useState(false)
@@ -36,6 +39,12 @@ export function VoiceChat() {
   const [connectedUser, setConnectedUser] = useState<User | null>(null)
   const [isReportDialogOpen, setReportDialogOpen] = useState(false)
   const { toast } = useToast()
+  
+  const localVideoRef = useRef<HTMLAudioElement>(null)
+  const remoteVideoRef = useRef<HTMLAudioElement>(null)
+
+  const callIdRef = useRef<string | null>(null)
+  const startTimeRef = useRef<Date | null>(null)
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -45,23 +54,50 @@ export function VoiceChat() {
     return `${mins}:${secs}`
   }
 
-  const startConnecting = useCallback(() => {
-    setCallState("connecting")
+  const startConnecting = useCallback(async () => {
+    if (!firestore || !user) return;
+    setCallState("searching")
     setTimer(0)
-  }, [])
+    setConnectedUser(null)
+    callIdRef.current = null;
+    startTimeRef.current = null;
+    
+    const onConnected = (peer: User, callId: string) => {
+        setConnectedUser(peer);
+        setCallState("in-call");
+        callIdRef.current = callId;
+        startTimeRef.current = new Date();
+    }
+    const onHangup = () => handleHangUp();
+    
+    await webrtc.createOrJoinRoom(firestore, user, onConnected, onHangup, localVideoRef, remoteVideoRef);
 
-  const handleHangUp = useCallback(() => {
+  }, [firestore, user])
+
+  const handleHangUp = useCallback(async () => {
+    if(callIdRef.current && firestore && user && connectedUser && startTimeRef.current) {
+        const duration = Math.floor((new Date().getTime() - startTimeRef.current.getTime()) / 1000);
+        const callData = {
+            callerId: user.uid,
+            callerName: user.displayName,
+            callerAvatar: user.photoURL,
+            calleeId: connectedUser.id,
+            calleeName: connectedUser.name,
+            calleeAvatar: connectedUser.avatar,
+            startedAt: serverTimestamp(),
+            duration: duration,
+        };
+        await addDoc(collection(firestore, `users/${user.uid}/calls`), callData);
+        await addDoc(collection(firestore, `users/${connectedUser.id}/calls`), callData);
+    }
+    
+    webrtc.hangup(callIdRef.current);
     setCallState("call-ended")
-  }, [])
+  }, [firestore, user, connectedUser])
   
   useEffect(() => {
     let callTimeout: NodeJS.Timeout
-    if (callState === "connecting") {
-      callTimeout = setTimeout(() => {
-        setConnectedUser(generateRandomUser())
-        setCallState("in-call")
-      }, 2000)
-    } else if (callState === "call-ended" && autoCall) {
+    if (callState === "call-ended" && autoCall) {
       callTimeout = setTimeout(() => {
         startConnecting()
       }, 2000)
@@ -79,11 +115,34 @@ export function VoiceChat() {
     return () => clearInterval(interval)
   }, [callState])
 
-  const handleAddFriend = () => {
-    toast({
-      title: "Friend Request Sent",
-      description: `Your friend request to ${connectedUser?.name} has been sent.`,
-    })
+  useEffect(() => {
+    webrtc.toggleMute(isMuted);
+  }, [isMuted]);
+
+  const handleAddFriend = async () => {
+    if(!user || !firestore || !connectedUser) return;
+    try {
+        await setDoc(doc(firestore, `users/${user.uid}/friends`, connectedUser.id), {
+            friendId: connectedUser.id,
+            createdAt: serverTimestamp(),
+        });
+        await setDoc(doc(firestore, `users/${connectedUser.id}/friends`, user.uid), {
+            friendId: user.uid,
+            createdAt: serverTimestamp(),
+        });
+
+        toast({
+        title: "Friend Request Sent",
+        description: `Your friend request to ${connectedUser?.name} has been sent.`,
+        })
+    } catch (e) {
+        console.error("Error adding friend: ", e)
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not add friend. Please try again.",
+        })
+    }
   }
   
   const renderContent = () => {
@@ -98,11 +157,11 @@ export function VoiceChat() {
             </Button>
           </div>
         )
-      case "connecting":
+      case "searching":
         return (
           <div className="flex flex-col items-center justify-center text-center p-8 min-h-[350px]">
             <Loader2 className="w-16 h-16 animate-spin text-primary mb-4" />
-            <h2 className="text-2xl font-semibold mb-2">Connecting...</h2>
+            <h2 className="text-2xl font-semibold mb-2">Searching...</h2>
             <p className="text-muted-foreground mb-6">Finding a random person for you to talk to.</p>
             <Button variant="outline" onClick={() => setCallState("idle")}>
               <X className="mr-2" /> Cancel
@@ -114,7 +173,7 @@ export function VoiceChat() {
           <div className="flex flex-col items-center text-center p-8 min-h-[350px]">
             <Avatar className="w-32 h-32 mb-4 border-4 border-primary shadow-lg">
               <AvatarImage src={connectedUser?.avatar} alt={connectedUser?.name} data-ai-hint="person portrait" />
-              <AvatarFallback>{connectedUser?.name.charAt(0)}</AvatarFallback>
+              <AvatarFallback>{connectedUser?.name?.charAt(0)}</AvatarFallback>
             </Avatar>
             <h2 className="text-2xl font-bold">{connectedUser?.name}</h2>
             <p className="text-2xl font-mono text-muted-foreground mt-2">{formatTime(timer)}</p>
@@ -159,6 +218,8 @@ export function VoiceChat() {
       <CardContent className="p-0">
         <div className="relative">
             {renderContent()}
+            <audio ref={localVideoRef} autoPlay playsInline muted/>
+            <audio ref={remoteVideoRef} autoPlay playsInline />
         </div>
       </CardContent>
       <Separator />

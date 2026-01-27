@@ -1,16 +1,30 @@
 "use client"
 
-import { callHistory } from "@/lib/data"
+import { useUser } from "@/firebase/auth/use-user"
+import { useCollection } from "@/firebase/firestore/use-collection"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { Clock, Phone } from "lucide-react"
+import { Clock, Phone, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
+import { useFirestore } from "@/firebase"
+import { collection, query, orderBy } from "firebase/firestore"
+import { useMemo } from "react"
+import { formatDistanceToNow } from "date-fns"
 
 export function CallHistory() {
+  const { user } = useUser()
+  const firestore = useFirestore()
   const { toast } = useToast()
+
+  const callsQuery = useMemo(() => {
+    if (!user || !firestore) return null
+    return query(collection(firestore, `users/${user.uid}/calls`), orderBy("startedAt", "desc"));
+  }, [user, firestore])
+
+  const { data: callHistory, loading } = useCollection(callsQuery)
 
   const handleCall = (userName: string) => {
     toast({
@@ -18,6 +32,14 @@ export function CallHistory() {
       description: `Starting a call with ${userName}.`,
     })
     // In a real app, you'd trigger the call flow here.
+    // This is not implemented in this version.
+  }
+
+  const formatDuration = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return `${minutes}m ${remainingSeconds}s`
   }
 
   return (
@@ -27,24 +49,31 @@ export function CallHistory() {
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-[400px]">
-          {callHistory.length > 0 ? (
+          {loading && (
+            <div className="flex justify-center items-center h-full">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          )}
+          {!loading && callHistory && callHistory.length > 0 ? (
             <div className="space-y-4">
-              {callHistory.map((call, index) => (
+              {callHistory.map((call: any, index) => (
                 <div key={call.id}>
                   <div className="flex items-center gap-4">
                     <Avatar className="h-12 w-12">
-                      <AvatarImage src={call.user.avatar} alt={call.user.name} data-ai-hint="person portrait" />
-                      <AvatarFallback>{call.user.name.charAt(0)}</AvatarFallback>
+                      <AvatarImage src={call.calleeAvatar} alt={call.calleeName} data-ai-hint="person portrait" />
+                      <AvatarFallback>{call.calleeName.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                      <p className="font-semibold">{call.user.name}</p>
-                      <p className="text-sm text-muted-foreground">{call.date}</p>
+                      <p className="font-semibold">{call.calleeName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {call.startedAt ? formatDistanceToNow(call.startedAt.toDate(), { addSuffix: true }) : 'N/A'}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="w-4 h-4" />
-                      <span>{call.duration}</span>
+                      <span>{formatDuration(call.duration)}</span>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleCall(call.user.name)}>
+                    <Button variant="ghost" size="icon" onClick={() => handleCall(call.calleeName)}>
                       <Phone className="w-4 h-4" />
                     </Button>
                   </div>
@@ -53,10 +82,12 @@ export function CallHistory() {
               ))}
             </div>
           ) : (
-            <div className="text-center text-muted-foreground py-16">
-              <p>Your call history is empty.</p>
-              <p>Start a chat to see your history here.</p>
-            </div>
+            !loading && (
+              <div className="text-center text-muted-foreground py-16">
+                <p>Your call history is empty.</p>
+                <p>Start a chat to see your history here.</p>
+              </div>
+            )
           )}
         </ScrollArea>
       </CardContent>
