@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   Loader2,
   Waves,
+  Phone,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -75,68 +76,63 @@ export function VoiceChat() {
   }
 
   const renderControls = () => {
-     switch (callState) {
-      case "idle":
-        return (
-          <div className="flex flex-col items-center justify-center text-center gap-6">
-            <p className="text-muted-foreground">Press the button to connect with a random user.</p>
-            <Button onClick={findRandomCall} size="lg">
-              Find a random chat
-            </Button>
+    const isCalling = callState !== 'idle';
+    const isConnected = callState === 'connected';
+
+    return (
+      <div className="flex flex-col items-center justify-center text-center gap-6 w-full">
+        <div className="h-8">
+          {isConnected && <h2 className="text-2xl font-bold">{connectedUser?.name}</h2>}
+          {callState === 'outgoing' && <p className="text-muted-foreground">Calling {connectedUser?.name}...</p>}
+          {callState === 'searching' && <p className="text-muted-foreground">Searching for a user...</p>}
+        </div>
+
+        <div className="flex justify-center items-start gap-4">
+          <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-4 py-2" onClick={isCalling ? hangup : findRandomCall}>
+            {isCalling ? (
+              <>
+                <div className="bg-destructive rounded-full p-3">
+                  <PhoneOff className="w-6 h-6 text-destructive-foreground"/>
+                </div>
+                <span className="mt-1">Hang Up</span>
+              </>
+            ) : (
+              <>
+                <div className="bg-green-500 rounded-full p-3">
+                  <Phone className="w-6 h-6 text-white"/>
+                </div>
+                <span className="mt-1">Call</span>
+              </>
+            )}
+          </Button>
+
+          <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-4 py-2 disabled:opacity-50" onClick={toggleMute} disabled={!isConnected}>
+            {isMuted ? <MicOff className="w-6 h-6 mb-1" /> : <Mic className="w-6 h-6 mb-1" />}
+            <span className={!isConnected ? 'text-muted-foreground' : ''}>{isMuted ? 'Unmute' : 'Mute'}</span>
+          </Button>
+
+          <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-4 py-2 disabled:opacity-50" onClick={handleAddFriend} disabled={!isConnected || friendRequestSent}>
+            <UserPlus className="w-6 h-6 mb-1"/>
+            <span className={!isConnected ? 'text-muted-foreground' : ''}>{friendRequestSent ? 'Sent' : 'Add Friend'}</span>
+          </Button>
+
+          <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-4 py-2 disabled:opacity-50" onClick={() => setReportDialogOpen(true)} disabled={!isConnected}>
+            <ShieldAlert className="w-6 h-6 mb-1"/>
+            <span className={!isConnected ? 'text-muted-foreground' : ''}>Report</span>
+          </Button>
+        </div>
+
+        {!isCalling && (
+          <div className="flex flex-col items-center gap-4">
             <div className="flex items-center space-x-2">
-                <Checkbox id="auto-call" checked={autoCall} onCheckedChange={(checked) => setAutoCall(!!checked)} />
-                <Label htmlFor="auto-call" className="text-muted-foreground">Automatically find next chat</Label>
+              <Checkbox id="auto-call" checked={autoCall} onCheckedChange={(checked) => setAutoCall(!!checked)} />
+              <Label htmlFor="auto-call" className="text-muted-foreground">Enable Auto Call</Label>
             </div>
+            <p className="text-muted-foreground">Tap the Call button to call a new stranger</p>
           </div>
-        );
-      case "searching":
-        return (
-            <div className="flex flex-col items-center justify-center text-center gap-6">
-            <p className="text-muted-foreground">Please wait while we connect you.</p>
-            <Button variant="destructive" onClick={() => hangup()}>
-                Cancel
-            </Button>
-            </div>
-        );
-      case "outgoing":
-        return (
-          <div className="flex flex-col items-center justify-center text-center gap-6">
-            <p className="text-muted-foreground">Calling {connectedUser?.name}... waiting for them to pick up.</p>
-            <Button variant="destructive" onClick={() => hangup()}>
-              Cancel Call
-            </Button>
-          </div>
-        );
-      case "connected":
-        return (
-          <div className="flex flex-col items-center text-center gap-6">
-             <h2 className="text-2xl font-bold">{connectedUser?.name}</h2>
-              <div className="flex justify-center gap-4">
-                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-4 py-2" onClick={() => setReportDialogOpen(true)}>
-                  <ShieldAlert className="w-6 h-6 mb-1"/>
-                  <span>Report</span>
-                </Button>
-                
-                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-4 py-2" onClick={toggleMute}>
-                    {isMuted ? <MicOff className="w-6 h-6 mb-1" /> : <Mic className="w-6 h-6 mb-1" />}
-                    <span>{isMuted ? 'Unmute' : 'Mute'}</span>
-                </Button>
-
-                <Button variant="destructive" className="flex flex-col items-center justify-center h-auto px-4 py-2" onClick={() => hangup()}>
-                  <PhoneOff className="w-6 h-6 mb-1"/>
-                   <span>Hang Up</span>
-                </Button>
-
-                 <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-4 py-2" onClick={handleAddFriend} disabled={friendRequestSent}>
-                  <UserPlus className="w-6 h-6 mb-1"/>
-                  <span>{friendRequestSent ? 'Sent' : 'Add Friend'}</span>
-                </Button>
-              </div>
-          </div>
-        );
-      default:
-        return null;
-    }
+        )}
+      </div>
+    );
   }
 
   return (
@@ -150,7 +146,7 @@ export function VoiceChat() {
             )}>
                 {renderCircleContent()}
             </div>
-            <div className="h-24">
+            <div className="h-36 flex items-center">
                 {renderControls()}
             </div>
         </div>
