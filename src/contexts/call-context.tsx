@@ -240,11 +240,12 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         setCallState('searching');
 
         const roomsRef = collection(firestore, 'rooms');
-        const q = query(roomsRef, where('calleeId', '==', null), where('callerId', '!=', user.id), orderBy('createdAt', 'asc'), limit(1));
+        const q = query(roomsRef, where('calleeId', '==', null), orderBy('createdAt', 'asc'), limit(10));
         
         const querySnapshot = await getDocs(q);
+        const availableRoom = querySnapshot.docs.find(doc => doc.data().callerId !== user.id);
 
-        if (querySnapshot.empty) {
+        if (!availableRoom) {
             // No available rooms, create a new one
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             setLocalStream(stream);
@@ -283,7 +284,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
 
         } else {
             // Join an existing room
-            const roomDoc = querySnapshot.docs[0];
+            const roomDoc = availableRoom;
             callIdRef.current = roomDoc.id;
             const roomData = roomDoc.data();
             
