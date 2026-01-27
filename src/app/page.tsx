@@ -3,6 +3,7 @@ import { VoiceChat } from "@/components/voice-chat"
 import { CallHistory } from "@/components/call-history"
 import { FriendsList } from "@/components/friends-list"
 import { MessageCircle, History, Users, Waves } from "lucide-react"
+import { Footer } from "@/components/footer"
 
 export default function Home() {
   return (
@@ -13,7 +14,7 @@ export default function Home() {
           RandomTalk.online
         </h1>
       </header>
-      <main className="w-full max-w-lg md:max-w-xl">
+      <main className="w-full max-w-lg md:max-w-xl flex-1">
         <Tabs defaultValue="chat" className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-card border">
             <TabsTrigger value="chat" className="gap-2">
@@ -37,6 +38,7 @@ export default function Home() {
           </TabsContent>
         </Tabs>
       </main>
+      <Footer />
     </div>
   )
 }

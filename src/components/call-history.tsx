@@ -5,9 +5,21 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { Clock } from "lucide-react"
+import { Clock, Phone } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useToast } from "@/hooks/use-toast"
 
 export function CallHistory() {
+  const { toast } = useToast()
+
+  const handleCall = (userName: string) => {
+    toast({
+      title: "Calling user...",
+      description: `Starting a call with ${userName}.`,
+    })
+    // In a real app, you'd trigger the call flow here.
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -32,6 +44,9 @@ export function CallHistory() {
                       <Clock className="w-4 h-4" />
                       <span>{call.duration}</span>
                     </div>
+                    <Button variant="ghost" size="icon" onClick={() => handleCall(call.user.name)}>
+                      <Phone className="w-4 h-4" />
+                    </Button>
                   </div>
                   {index < callHistory.length - 1 && <Separator className="mt-4" />}
                 </div>
