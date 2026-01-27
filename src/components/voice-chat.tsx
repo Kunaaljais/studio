@@ -72,6 +72,11 @@ export function VoiceChat() {
   };
 
   const handleHangupClick = () => {
+    if (callState === 'idle') {
+        findRandomCall();
+        return;
+    }
+
     if (confirmHangup) {
       hangup();
       setConfirmHangup(false);
@@ -101,25 +106,6 @@ export function VoiceChat() {
   const renderControls = () => {
     const isCalling = callState !== 'idle';
     const isConnected = callState === 'connected';
-
-    if (callState === 'idle' && showDisconnectedMessage) {
-        return (
-            <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
-                <div className="h-6"></div>
-                <Button onClick={findRandomCall} className="gap-2">
-                    <RefreshCw/>
-                    Next Call
-                </Button>
-                <div className="flex flex-col items-center gap-2 mt-1">
-                    <div className="flex items-center space-x-2">
-                        <Checkbox id="auto-call" checked={autoCall} onCheckedChange={(checked) => setAutoCall(!!checked)} />
-                        <Label htmlFor="auto-call" className="text-sm text-muted-foreground">Enable Auto Call</Label>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Automatically call the next person</p>
-                </div>
-            </div>
-        )
-    }
     
     const renderIdleControls = () => (
         <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
@@ -166,6 +152,25 @@ export function VoiceChat() {
       </div>
     );
 
+    if (showDisconnectedMessage && callState === 'idle') {
+        return (
+             <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
+                <div className="h-6"></div>
+                <Button onClick={findRandomCall} className="gap-2">
+                    <RefreshCw/>
+                    Next Call
+                </Button>
+                <div className="flex flex-col items-center gap-2 mt-1">
+                    <div className="flex items-center space-x-2">
+                        <Checkbox id="auto-call" checked={autoCall} onCheckedChange={(checked) => setAutoCall(!!checked)} />
+                        <Label htmlFor="auto-call" className="text-sm text-muted-foreground">Enable Auto Call</Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Automatically call the next person</p>
+                </div>
+            </div>
+        )
+    }
+
     if (!isCalling) {
       return renderIdleControls();
     }
@@ -201,21 +206,21 @@ export function VoiceChat() {
           {isCalling && (
             <>
             <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 disabled:opacity-50 hover:bg-transparent hover:text-current" onClick={toggleMute} disabled={!isConnected}>
-                <div className="bg-secondary rounded-full p-4">
+                <div className={cn("rounded-full p-4", isConnected ? "bg-secondary hover:bg-secondary/80" : "bg-secondary")}>
                     {isMuted ? <MicOff className="w-7 h-7" /> : <Mic className="w-7 h-7" />}
                 </div>
                 <span className={cn('mt-1 text-xs', !isConnected ? 'text-muted-foreground' : '')}>{isMuted ? 'Unmute' : 'Mute'}</span>
             </Button>
 
             <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 disabled:opacity-50 hover:bg-transparent hover:text-current" onClick={handleAddFriend} disabled={!isConnected || friendRequestSent}>
-                <div className="bg-secondary rounded-full p-4">
+                <div className={cn("rounded-full p-4", isConnected ? "bg-secondary hover:bg-secondary/80" : "bg-secondary")}>
                     <UserPlus className="w-7 h-7"/>
                 </div>
                 <span className={cn('mt-1 text-xs', !isConnected ? 'text-muted-foreground' : '')}>{friendRequestSent ? 'Sent' : 'Add Friend'}</span>
             </Button>
 
             <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 disabled:opacity-50 hover:bg-transparent hover:text-current" onClick={() => setReportDialogOpen(true)} disabled={!isConnected}>
-                <div className="bg-secondary rounded-full p-4">
+                <div className={cn("rounded-full p-4", isConnected ? "bg-secondary hover:bg-secondary/80" : "bg-secondary")}>
                     <ShieldAlert className="w-7 h-7"/>
                 </div>
                 <span className={cn('mt-1 text-xs', !isConnected ? 'text-muted-foreground' : '')}>Report</span>
@@ -232,7 +237,7 @@ export function VoiceChat() {
     <>
     <Card className="w-full max-w-sm shadow-2xl">
       <CardContent className="p-0">
-        <div className="flex flex-col items-center justify-center p-4 gap-2 h-[376px]">
+        <div className="flex flex-col items-center justify-center p-6 gap-4 h-[340px]">
             <div className={cn(
                 "w-48 h-48 rounded-full border-4 flex flex-col items-center justify-center transition-colors duration-500",
                 callState === 'connected' ? 'border-green-500' : 'border-primary'
@@ -242,7 +247,7 @@ export function VoiceChat() {
             <div className="flex items-center justify-center w-full">
                 {renderControls()}
             </div>
-            <div className="h-5">
+            <div className="h-5 flex items-center">
               {showDisconnectedMessage && callState === 'idle' && (
                 <p className="text-red-500 text-sm">Your partner has ended the call</p>
               )}
