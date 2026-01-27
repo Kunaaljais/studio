@@ -151,10 +151,15 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
     const setupPeerConnection = useCallback(async (stream: MediaStream) => {
         pc.current = new RTCPeerConnection(servers);
 
+        const newRemoteStream = new MediaStream();
+        setRemoteStream(newRemoteStream);
+
         stream.getTracks().forEach(track => pc.current!.addTrack(track, stream));
         
         pc.current.ontrack = event => {
-            setRemoteStream(event.streams[0]);
+            event.streams[0].getTracks().forEach(track => {
+                newRemoteStream.addTrack(track);
+            });
         };
         
         pc.current.onconnectionstatechange = () => {
