@@ -39,7 +39,7 @@ export function CallHistory() {
         <CardTitle>Call History</CardTitle>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[300px]">
+        <ScrollArea className="h-[280px]">
           {loading && (
             <div className="flex justify-center items-center h-full">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />

@@ -90,6 +90,14 @@ export function VoiceChat() {
             return <p className="text-3xl font-mono text-primary-foreground">{formatTime(timer)}</p>;
         case 'idle':
         default:
+             if (showDisconnectedMessage) {
+                return (
+                    <div className="flex flex-col items-center gap-2 text-center">
+                        <PhoneOff className="w-12 h-12 text-destructive" />
+                        <h2 className="text-lg font-bold text-primary-foreground">Call Ended</h2>
+                    </div>
+                )
+            }
             return (
                 <div className="flex flex-col items-center gap-2 text-center">
                     <Waves className="w-12 h-12 text-primary" />
@@ -102,6 +110,25 @@ export function VoiceChat() {
   const renderControls = () => {
     const isCalling = callState !== 'idle';
     const isConnected = callState === 'connected';
+
+    if (showDisconnectedMessage && callState === 'idle') {
+        return (
+            <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
+                <div className="h-6"></div>
+                <Button onClick={findRandomCall} className="gap-2">
+                    <RefreshCw/>
+                    Next Call
+                </Button>
+                <div className="flex flex-col items-center gap-2 mt-1">
+                    <div className="flex items-center space-x-2">
+                        <Checkbox id="auto-call" checked={autoCall} onCheckedChange={(checked) => setAutoCall(!!checked)} />
+                        <Label htmlFor="auto-call" className="text-sm text-muted-foreground">Enable Auto Call</Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Automatically call the next person</p>
+                </div>
+            </div>
+        )
+    }
     
     const renderIdleControls = () => (
         <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
@@ -110,7 +137,7 @@ export function VoiceChat() {
 
             <div className="flex justify-center items-start">
                 <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 hover:bg-transparent" onClick={findRandomCall}>
-                    <div className="bg-green-500 hover:bg-green-500/90 rounded-full p-4 transition-colors">
+                    <div className="bg-green-500 hover:bg-green-600 rounded-full p-4 transition-colors">
                     <Phone className="w-7 h-7 text-white"/>
                     </div>
                     <span className="mt-1 text-xs">Call</span>
@@ -169,7 +196,7 @@ export function VoiceChat() {
               onClick={handleHangupClick}
               onMouseLeave={() => setConfirmHangup(false)}
             >
-              <div className="bg-destructive hover:bg-destructive/90 rounded-full p-4 transition-colors">
+              <div className="bg-destructive hover:bg-red-600 rounded-full p-4 transition-colors">
                 {confirmHangup ? (
                   <Check className="w-7 h-7 text-destructive-foreground"/>
                 ) : (
@@ -214,19 +241,22 @@ export function VoiceChat() {
     <>
     <Card className="w-full max-w-sm shadow-2xl">
       <CardContent className="p-2">
-        <div className="flex flex-col items-center justify-center p-2 gap-2">
+        <div className="flex flex-col items-center justify-center p-2 gap-2 h-[380px]">
             <div className={cn(
                 "w-48 h-48 rounded-full border-4 flex flex-col items-center justify-center transition-colors duration-500",
-                callState === 'connected' ? 'border-green-500' : 'border-primary'
+                callState === 'connected' ? 'border-green-500' : 'border-primary',
+                showDisconnectedMessage && callState === 'idle' && 'border-destructive'
             )}>
                 {renderCircleContent()}
             </div>
             <div className="flex items-center justify-center w-full">
                 {renderControls()}
             </div>
-            {showDisconnectedMessage && callState === 'idle' && (
-              <p className="text-red-500 text-sm">Your partner has ended the call</p>
-            )}
+            <div className="h-5">
+              {showDisconnectedMessage && callState === 'idle' && (
+                <p className="text-red-500 text-sm">Your partner has ended the call</p>
+              )}
+            </div>
         </div>
       </CardContent>
     </Card>
