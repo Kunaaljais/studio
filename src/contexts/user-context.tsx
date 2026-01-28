@@ -39,6 +39,7 @@ export const UserProvider = ({ children }: PropsWithChildren) => {
                 ...generatedUser,
                 online: true,
                 lastSeen: serverTimestamp(),
+                callState: 'idle',
             };
             setDoc(userRef, userData, { merge: true });
 

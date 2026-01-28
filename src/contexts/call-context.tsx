@@ -73,6 +73,12 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         callStateRef.current = callState;
     }, [callState]);
 
+    useEffect(() => {
+        if (!firestore || !user?.id) return;
+        const userRef = doc(firestore, 'users', user.id);
+        updateDoc(userRef, { callState: callState });
+    }, [callState, firestore, user?.id]);
+
     const unsubscribers = useRef<(() => void)[]>([]);
 
     const startSilentAudio = useCallback(() => {
