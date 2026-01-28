@@ -64,6 +64,9 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
     const startTimeRef = useRef<Date | null>(null);
     const callTypeRef = useRef<'incoming' | 'outgoing' | 'random' | null>(null);
     const endCallTimer = useRef<NodeJS.Timeout | null>(null);
+    
+    const silentAudioContext = useRef<AudioContext | null>(null);
+    const silentOscillator = useRef<OscillatorNode | null>(null);
 
     const callStateRef = useRef(callState);
     useEffect(() => {
@@ -72,11 +75,43 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
 
     const unsubscribers = useRef<(() => void)[]>([]);
 
+    const startSilentAudio = useCallback(() => {
+        if (silentAudioContext.current) return;
+        try {
+            const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+            silentAudioContext.current = context;
+            const oscillator = context.createOscillator();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(20, context.currentTime); // Low inaudible frequency
+            const gainNode = context.createGain();
+            gainNode.gain.setValueAtTime(0.001, context.currentTime); // Very low gain
+            oscillator.connect(gainNode);
+            gainNode.connect(context.destination);
+            oscillator.start();
+            silentOscillator.current = oscillator;
+        } catch (error) {
+            console.error("Could not start silent audio for background playback:", error);
+        }
+    }, []);
+
+    const stopSilentAudio = useCallback(() => {
+        if (silentOscillator.current) {
+            silentOscillator.current.stop();
+            silentOscillator.current = null;
+        }
+        if (silentAudioContext.current) {
+            silentAudioContext.current.close().catch(console.error);
+            silentAudioContext.current = null;
+        }
+    }, []);
+
     const cleanupCall = useCallback(() => {
         if (endCallTimer.current) {
             clearTimeout(endCallTimer.current);
             endCallTimer.current = null;
         }
+        
+        stopSilentAudio();
         
         unsubscribers.current.forEach(unsubscribe => unsubscribe());
         unsubscribers.current = [];
@@ -112,7 +147,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         startTimeRef.current = null;
         callTypeRef.current = null;
 
-    }, [localStream, firestore]);
+    }, [localStream, firestore, stopSilentAudio]);
     
     const hangup = useCallback(() => {
         if (callState === 'connected' && connectedUser && startTimeRef.current) {
@@ -193,6 +228,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             
             pc.current.onconnectionstatechange = () => {
                 if (pc.current?.connectionState === 'connected') {
+                    startSilentAudio();
                     setCallState('connected');
                     startTimeRef.current = new Date();
                     if (endCallTimer.current) {
@@ -207,9 +243,9 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             console.error("Failed to get user media", error);
             pc.current = null;
         }
-    }, [hangup]);
+    }, [hangup, startSilentAudio]);
     
-    const createCall = async (callee?: AppUser, setupDone = false) => {
+    const createCall = useCallback(async (callee?: AppUser, setupDone = false) => {
         if (!firestore || !user) return;
 
         setCallState(callee ? 'outgoing' : 'searching');
@@ -271,39 +307,9 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             });
         });
         unsubscribers.current.push(unsub1, unsub2);
-    };
+    }, [firestore, user, setupPeerConnection, hangup, toast]);
 
-    const startCall = (callee: AppUser) => createCall(callee, false);
-
-    const findRandomCall = async () => {
-        if (!firestore || !user) return;
-        setCallState('searching');
-
-        const setupPromise = setupPeerConnection();
-        const roomsQuery = query(collection(firestore, 'rooms'), where('answered', '==', false));
-        const queryPromise = getDocs(roomsQuery);
-        
-        const [_, querySnapshot] = await Promise.all([setupPromise, queryPromise]);
-        
-        if(!pc.current) {
-            setCallState('idle'); 
-            toast({ variant: 'destructive', title: 'Permission Denied', description: 'Microphone access is required to start a call.' });
-            return;
-        }
-
-        const availableRooms = querySnapshot.docs
-            .map(doc => ({ id: doc.id, data: doc.data() }))
-            .filter(room => room.data.callerId !== user.id && !room.data.calleeId);
-
-        if (availableRooms.length > 0) {
-            const randomRoom = availableRooms[Math.floor(Math.random() * availableRooms.length)];
-            await joinCall(randomRoom.id, false, true);
-        } else {
-            await createCall(undefined, true);
-        }
-    };
-    
-    const joinCall = async (roomId: string, isAccepting: boolean, setupDone = false) => {
+    const joinCall = useCallback(async (roomId: string, isAccepting: boolean, setupDone = false) => {
          if (!firestore || !user) return;
          callIdRef.current = roomId;
          
@@ -350,22 +356,52 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
          unsubscribers.current.push(unsub1, unsub2);
          
          if (isAccepting) setIncomingCall(null);
-    }
+    }, [firestore, user, setupPeerConnection, cleanupCall, hangup, toast]);
 
-    const acceptCall = () => {
+    const startCall = useCallback((callee: AppUser) => createCall(callee, false), [createCall]);
+
+    const findRandomCall = useCallback(async () => {
+        if (!firestore || !user) return;
+        setCallState('searching');
+
+        const setupPromise = setupPeerConnection();
+        const roomsQuery = query(collection(firestore, 'rooms'), where('answered', '==', false));
+        const queryPromise = getDocs(roomsQuery);
+        
+        const [_, querySnapshot] = await Promise.all([setupPromise, queryPromise]);
+        
+        if(!pc.current) {
+            setCallState('idle'); 
+            toast({ variant: 'destructive', title: 'Permission Denied', description: 'Microphone access is required to start a call.' });
+            return;
+        }
+
+        const availableRooms = querySnapshot.docs
+            .map(doc => ({ id: doc.id, data: doc.data() }))
+            .filter(room => room.data.callerId !== user.id && !room.data.calleeId);
+
+        if (availableRooms.length > 0) {
+            const randomRoom = availableRooms[Math.floor(Math.random() * availableRooms.length)];
+            await joinCall(randomRoom.id, false, true);
+        } else {
+            await createCall(undefined, true);
+        }
+    }, [firestore, user, setupPeerConnection, joinCall, createCall, toast]);
+    
+    const acceptCall = useCallback(() => {
         if (!incomingCall) return;
         joinCall(incomingCall.callId, true, false);
-    }
+    }, [incomingCall, joinCall]);
 
-    const rejectCall = async () => {
+    const rejectCall = useCallback(async () => {
         if (incomingCall && firestore) {
             await deleteDoc(doc(firestore, 'rooms', incomingCall.callId));
         }
         setIncomingCall(null);
         setCallState('idle');
-    };
+    }, [incomingCall, firestore]);
 
-    const sendFriendRequest = async () => {
+    const sendFriendRequest = useCallback(async () => {
         if (!firestore || !user || !connectedUser) return;
 
         const requestsRef = collection(firestore, "friendRequests");
@@ -385,9 +421,9 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             status: 'pending', createdAt: serverTimestamp()
         });
         toast({ title: 'Friend Request Sent', description: `Your friend request has been sent to ${connectedUser.name}.` });
-    };
+    }, [firestore, user, connectedUser, toast]);
 
-    const acceptFriendRequest = async (request: any) => {
+    const acceptFriendRequest = useCallback(async (request: any) => {
         if (!firestore) return;
         const friend = { id: request.fromId, name: request.fromName, avatar: request.fromAvatar };
         saveFriendToStorage(friend);
@@ -397,20 +433,20 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         await updateDoc(requestRef, { status: 'accepted' });
         
         toast({ title: "Friend Added!", description: `${friend.name} is now your friend.` });
-    };
+    }, [firestore, toast]);
     
-    const rejectFriendRequest = async (requestId: string) => {
+    const rejectFriendRequest = useCallback(async (requestId: string) => {
         if (!firestore) return;
         const requestRef = doc(firestore, 'friendRequests', requestId);
         await updateDoc(requestRef, { status: 'rejected' });
-    };
+    }, [firestore]);
 
-    const toggleMute = () => {
+    const toggleMute = useCallback(() => {
         if (localStream) {
             localStream.getAudioTracks().forEach(track => { track.enabled = !track.enabled; });
             setIsMuted(prev => !prev);
         }
-    };
+    }, [localStream]);
     
     useEffect(() => {
         let interval: NodeJS.Timeout | null = null;
