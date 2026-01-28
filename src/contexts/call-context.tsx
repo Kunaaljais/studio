@@ -74,7 +74,6 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
     const callIdRef = useRef<string | null>(null);
     const startTimeRef = useRef<Date | null>(null);
     const callTypeRef = useRef<'incoming' | 'outgoing' | 'random' | null>(null);
-    const endCallTimer = useRef<NodeJS.Timeout | null>(null);
     
     const silentAudioContext = useRef<AudioContext | null>(null);
     const silentOscillator = useRef<OscillatorNode | null>(null);
@@ -123,11 +122,6 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
     }, []);
 
     const cleanupCall = useCallback(() => {
-        if (endCallTimer.current) {
-            clearTimeout(endCallTimer.current);
-            endCallTimer.current = null;
-        }
-        
         stopSilentAudio();
         
         unsubscribers.current.forEach(unsubscribe => unsubscribe());
@@ -249,10 +243,6 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
                     startSilentAudio();
                     setCallState('connected');
                     startTimeRef.current = new Date();
-                    if (endCallTimer.current) {
-                        clearTimeout(endCallTimer.current);
-                        endCallTimer.current = null;
-                    }
                 } else if (['disconnected', 'failed', 'closed'].includes(pc.current?.connectionState || '')) {
                     hangup();
                 }
@@ -299,13 +289,6 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             answered: false,
             createdAt: serverTimestamp()
         });
-
-        endCallTimer.current = setTimeout(() => {
-            if (callStateRef.current !== 'connected') {
-                toast({ variant: 'destructive', title: 'Call unanswered' });
-                hangup();
-            }
-        }, 30000);
 
         const unsub1 = onSnapshot(callDocRef, (snapshot) => {
             const data = snapshot.data();

@@ -80,11 +80,6 @@ export function VoiceChat() {
   };
 
   const handleHangupClick = () => {
-    if (callState === 'idle') {
-        handleFindCall();
-        return;
-    }
-
     if (confirmHangup) {
       hangup();
       setConfirmHangup(false);
@@ -210,11 +205,15 @@ export function VoiceChat() {
                 <span className="mt-1 text-xs text-foreground">{confirmHangup ? 'Confirm' : 'Hang Up'}</span>
                 </Button>
             ) : (callState === 'searching' || callState === 'outgoing') ? (
-                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 hover:bg-transparent" disabled>
-                    <div className="rounded-full p-4">
-                        <Loader2 className="w-7 h-7 animate-spin text-primary" />
+                <Button
+                variant="ghost"
+                className="flex flex-col items-center justify-center h-auto px-2 py-1 hover:bg-transparent"
+                onClick={hangup}
+                >
+                    <div className="bg-destructive hover:bg-red-600 rounded-full p-4 transition-colors">
+                        <PhoneOff className="w-7 h-7 text-destructive-foreground"/>
                     </div>
-                    <span className="mt-1 text-xs text-muted-foreground">&nbsp;</span>
+                    <span className="mt-1 text-xs">Cancel</span>
                 </Button>
             ) : null}
 
