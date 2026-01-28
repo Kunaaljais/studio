@@ -12,7 +12,7 @@ export function OnlineUsersCount() {
         if (!firestore) return;
 
         const usersRef = collection(firestore, 'users');
-        const q = query(usersRef, where('online', '==', true), where('callState', '==', 'idle'));
+        const q = query(usersRef, where('online', '==', true));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             setOnlineCount(snapshot.size);
