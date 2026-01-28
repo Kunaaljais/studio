@@ -80,6 +80,7 @@ export function VoiceChat() {
   };
 
   const handleFindCall = () => {
+    hangupInitiatedByUser.current = false;
     const parsedInterests = interests.split(',').map(i => i.trim().toLowerCase()).filter(Boolean);
     findRandomCall(parsedInterests);
   };

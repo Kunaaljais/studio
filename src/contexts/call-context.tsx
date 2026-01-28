@@ -332,20 +332,27 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         }
     
         const roomRef = doc(firestore, 'rooms', roomId);
-        let roomData: any;
+        
+        // Preliminary check
+        const initialRoomDoc = await getDoc(roomRef);
+        if (!initialRoomDoc.exists() || initialRoomDoc.data().answered) {
+             console.error("Join call failed: Room is already answered or does not exist.");
+             return false;
+        }
+        
+        const roomData = initialRoomDoc.data();
+        
+        await pc.current.setRemoteDescription(new RTCSessionDescription(roomData.offer));
+        const answer = await pc.current.createAnswer();
+        await pc.current.setLocalDescription(answer);
     
+        // Final atomic update
         try {
             await runTransaction(firestore, async (transaction) => {
                 const roomDoc = await transaction.get(roomRef);
-                if (!roomDoc.exists() || roomDoc.data().answered || roomDoc.data().calleeId) {
+                if (!roomDoc.exists() || roomDoc.data().answered) {
                     throw new Error("Room is already taken or does not exist.");
                 }
-                roomData = roomDoc.data();
-                
-                await pc.current!.setRemoteDescription(new RTCSessionDescription(roomData.offer));
-                const answer = await pc.current!.createAnswer();
-                await pc.current!.setLocalDescription(answer);
-    
                 transaction.update(roomRef, {
                     answer,
                     calleeId: user.id,
