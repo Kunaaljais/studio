@@ -24,7 +24,7 @@ export function OnlineUsersCount() {
     }, [firestore]);
 
     return (
-        <div className="absolute top-6 left-6 flex items-center gap-2 text-sm font-medium text-muted-foreground z-10 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border">
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-2 text-sm font-medium text-muted-foreground z-10 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border">
              <span className="relative flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>

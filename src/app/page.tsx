@@ -46,13 +46,15 @@ function App() {
       <audio ref={localAudioRef} autoPlay playsInline muted style={{ display: 'none' }} />
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
       <div className="relative flex flex-col items-center justify-start min-h-screen bg-background text-foreground p-4 sm:p-6 md:p-8">
-        <OnlineUsersCount />
-        <header className="flex items-center gap-2 mb-6 sm:mb-8">
-          <Waves className="w-8 h-8 text-primary" />
-          <h1 className="text-2xl sm:text-3xl font-bold text-primary-foreground font-headline">
-            RandomTalk.online
-          </h1>
-        </header>
+        <div className="w-full max-w-lg md:max-w-xl flex items-center justify-center relative mb-6 sm:mb-8">
+          <OnlineUsersCount />
+          <header className="flex items-center gap-2">
+            <Waves className="w-8 h-8 text-primary" />
+            <h1 className="text-2xl sm:text-3xl font-bold text-primary-foreground font-headline">
+              RandomTalk.online
+            </h1>
+          </header>
+        </div>
         <main className="w-full max-w-lg md:max-w-xl mx-auto flex-1 flex flex-col justify-start items-center">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
              <TabsList className="grid w-full grid-cols-3 rounded-b-none">
