@@ -40,10 +40,18 @@ export function VoiceChat() {
   const [confirmHangup, setConfirmHangup] = useState(false);
   const [interests, setInterests] = useState('');
   const prevCallState = useRef(callState);
+  const hangupInitiatedByUser = useRef(false);
 
   useEffect(() => {
     if (prevCallState.current === 'connected' && callState === 'idle') {
-      setShowDisconnectedMessage(true);
+      if (!hangupInitiatedByUser.current) {
+        setShowDisconnectedMessage(true);
+      }
+      hangupInitiatedByUser.current = false; // Reset for next call
+
+      if (autoCall) {
+          handleFindCall();
+      }
     } else if (callState !== 'idle') {
       setShowDisconnectedMessage(false);
     }
@@ -56,9 +64,6 @@ export function VoiceChat() {
         setFriendRequestSent(false);
     }
 
-    if (prevCallState.current === 'connected' && callState === 'idle' && autoCall) {
-        handleFindCall();
-    }
     prevCallState.current = callState;
 
   }, [callState, autoCall]);
@@ -81,11 +86,17 @@ export function VoiceChat() {
 
   const handleHangupClick = () => {
     if (confirmHangup) {
+      hangupInitiatedByUser.current = true;
       hangup();
       setConfirmHangup(false);
     } else {
       setConfirmHangup(true);
     }
+  };
+
+  const handleCancel = () => {
+    hangupInitiatedByUser.current = true;
+    hangup();
   };
   
   const renderCircleContent = () => {
@@ -208,7 +219,7 @@ export function VoiceChat() {
                 <Button
                 variant="ghost"
                 className="flex flex-col items-center justify-center h-auto px-2 py-1 hover:bg-transparent"
-                onClick={hangup}
+                onClick={handleCancel}
                 >
                     <div className="bg-destructive hover:bg-red-600 rounded-full p-4 transition-colors">
                         <PhoneOff className="w-7 h-7 text-destructive-foreground"/>
