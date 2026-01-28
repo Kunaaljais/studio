@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect, PropsWithChildren } fro
 import { generateRandomUser } from '@/lib/data';
 import { Loader2 } from 'lucide-react';
 import { useFirestore } from '@/firebase';
-import { doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 type AppUser = {
   id: string;
@@ -46,7 +46,8 @@ export const UserProvider = ({ children }: PropsWithChildren) => {
             setDoc(userRef, userData, { merge: true });
 
             const handleBeforeUnload = () => {
-                updateDoc(userRef, { online: false, lastSeen: serverTimestamp() });
+                // Use setDoc with merge to avoid race conditions on unload
+                setDoc(userRef, { online: false, lastSeen: serverTimestamp() }, { merge: true });
             };
 
             window.addEventListener("beforeunload", handleBeforeUnload);
