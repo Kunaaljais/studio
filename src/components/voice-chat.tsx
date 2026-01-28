@@ -204,14 +204,14 @@ export function VoiceChat() {
       <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
         <div className="flex flex-col items-center justify-center min-h-[2.5rem]">
            {isConnected && connectedUser && (
-            <h2 className="text-xl font-bold flex items-center gap-2">
-                {connectedUser.name}
-                {connectedUser.country && (
-                    <span className="text-sm font-normal text-muted-foreground flex items-center gap-1">
-                        from {connectedUser.country} {getFlagEmoji(connectedUser.countryCode || '')}
-                    </span>
-                )}
-            </h2>
+            <div className="text-center">
+              <h2 className="text-xl font-bold">{connectedUser.name}</h2>
+              {connectedUser.country && (
+                <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
+                  from {connectedUser.country} {getFlagEmoji(connectedUser.countryCode || '')}
+                </p>
+              )}
+            </div>
           )}
           {callState === 'outgoing' && connectedUser && <p className="text-muted-foreground">Calling {connectedUser.name}...</p>}
           {callState === 'searching' && (
