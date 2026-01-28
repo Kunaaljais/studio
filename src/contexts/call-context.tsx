@@ -415,23 +415,19 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             .map(doc => ({ id: doc.id, data: doc.data() }))
             .filter(room => room.data.callerId !== user.id && !room.data.calleeId);
 
+        if (interests.length > 0) {
+            const matchingRooms = availableRooms.filter(room =>
+                room.data.callerInterests?.some((i: string) => interests.includes(i))
+            );
+            if (matchingRooms.length > 0) {
+                const roomToJoin = matchingRooms[Math.floor(Math.random() * matchingRooms.length)];
+                await joinCall(roomToJoin.id, false, true, interests);
+                return;
+            }
+        }
+    
         if (availableRooms.length > 0) {
-            let roomToJoin = null;
-
-            if (interests.length > 0) {
-                const matchingRooms = availableRooms.filter(room =>
-                    room.data.callerInterests?.some((i: string) => interests.includes(i))
-                );
-
-                if (matchingRooms.length > 0) {
-                    roomToJoin = matchingRooms[Math.floor(Math.random() * matchingRooms.length)];
-                }
-            }
-
-            if (!roomToJoin) {
-                roomToJoin = availableRooms[Math.floor(Math.random() * availableRooms.length)];
-            }
-            
+            const roomToJoin = availableRooms[Math.floor(Math.random() * availableRooms.length)];
             await joinCall(roomToJoin.id, false, true, interests);
         } else {
             await createCall(undefined, true, interests);

@@ -114,10 +114,11 @@ export function VoiceChat() {
   const renderControls = () => {
     const isCalling = callState !== 'idle';
     const isConnected = callState === 'connected';
+    const hasInterests = interests.trim().length > 0;
     
     const renderIdleControls = () => (
         <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
-            <div className="h-6">
+            <div className="h-10">
             </div>
 
             <div className="flex justify-center items-start">
@@ -173,10 +174,23 @@ export function VoiceChat() {
 
     return (
       <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
-        <div className="h-6">
+        <div className="flex flex-col items-center justify-center min-h-[2.5rem]">
           {isConnected && <h2 className="text-xl font-bold">{connectedUser?.name}</h2>}
           {callState === 'outgoing' && <p className="text-muted-foreground">Calling {connectedUser?.name}...</p>}
-          {callState === 'searching' && <p className="text-muted-foreground">Searching for a user...</p>}
+          {callState === 'searching' && (
+             <div className="text-center">
+                <p className="text-muted-foreground">
+                    {hasInterests
+                        ? 'Searching for someone with similar interests...'
+                        : 'Searching for a random user...'}
+                </p>
+                {hasInterests && (
+                    <p className="text-xs text-muted-foreground/80">
+                        (If none are found, we'll connect you randomly)
+                    </p>
+                )}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-center items-start">
