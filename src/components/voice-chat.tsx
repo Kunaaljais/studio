@@ -40,13 +40,17 @@ export function VoiceChat() {
   const [confirmHangup, setConfirmHangup] = useState(false);
   const [interests, setInterests] = useState('');
   const prevCallState = useRef(callState);
+  const localHangupRef = useRef(false);
 
   useEffect(() => {
     if (prevCallState.current === 'connected' && callState === 'idle') {
-      setShowDisconnectedMessage(true);
+      if (!localHangupRef.current) {
+        setShowDisconnectedMessage(true);
+      }
       if (autoCall) {
           handleFindCall();
       }
+      localHangupRef.current = false;
     } else if (callState !== 'idle') {
       setShowDisconnectedMessage(false);
     }
@@ -81,6 +85,7 @@ export function VoiceChat() {
 
   const handleHangupClick = () => {
     if (confirmHangup) {
+      localHangupRef.current = true;
       hangup();
       setConfirmHangup(false);
     } else {
