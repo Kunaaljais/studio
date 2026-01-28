@@ -47,7 +47,9 @@ function App() {
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
       <div className="relative flex flex-col items-center justify-start min-h-screen bg-background text-foreground p-4 sm:p-6 md:p-8">
         <div className="w-full max-w-lg md:max-w-xl flex items-center justify-center relative mb-6 sm:mb-8">
-          <OnlineUsersCount />
+          <div className="absolute left-0 top-1/2">
+              <OnlineUsersCount />
+          </div>
           <header className="flex items-center gap-2">
             <Waves className="w-8 h-8 text-primary" />
             <h1 className="text-2xl sm:text-3xl font-bold text-primary-foreground font-headline">
