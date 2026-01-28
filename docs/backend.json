@@ -24,6 +24,13 @@
         "callState": {
           "type": "string",
           "description": "The user's current call state (e.g., idle, searching, connected)."
+        },
+        "interests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A list of user interests."
         }
       },
       "required": ["id", "name", "avatar", "online"]
@@ -49,6 +56,10 @@
         "callerAvatar": {
             "type": "string"
         },
+        "callerInterests": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
         "calleeId": {
             "type": "string"
         },
@@ -57,6 +68,10 @@
         },
         "calleeAvatar": {
             "type": "string"
+        },
+        "calleeInterests": {
+          "type": "array",
+          "items": { "type": "string" }
         },
         "answered": {
             "type": "boolean"
@@ -125,6 +140,18 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["fromId", "fromName", "toId", "toName", "status", "createdAt"]
+    },
+    "message": {
+      "title": "Message",
+      "description": "A text message sent within a call room.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "senderName", "text", "timestamp"]
     }
   },
   "auth": {
@@ -154,6 +181,12 @@
         "$ref": "#/backend/entities/iceCandidate"
       },
       "description": "ICE candidates from the callee."
+    },
+    "/rooms/{roomId}/messages/{messageId}": {
+      "schema": {
+        "$ref": "#/backend/entities/message"
+      },
+      "description": "Text messages for a call."
     },
     "/friendRequests/{requestId}": {
       "schema": {

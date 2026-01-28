@@ -1,12 +1,20 @@
 'use client';
 import { createContext, useContext, useState, useEffect, useRef, useCallback, PropsWithChildren } from 'react';
 import { useFirestore } from '@/firebase';
-import { collection, query, where, onSnapshot, doc, addDoc, setDoc, serverTimestamp, getDoc, updateDoc, getDocs, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, addDoc, setDoc, serverTimestamp, getDoc, updateDoc, getDocs, deleteDoc, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { saveFriendToStorage, saveCallToStorage } from '@/lib/local-storage';
 
 type CallState = 'idle' | 'searching' | 'outgoing' | 'incoming' | 'connected' | 'disconnected';
-export type AppUser = { id: string; name: string; avatar: string; };
+export type AppUser = { id: string; name: string; avatar: string; interests?: string[] };
+export type Message = {
+    id: string;
+    text: string;
+    senderId: string;
+    senderName: string;
+    timestamp: any;
+};
+
 
 interface CallContextType {
     callState: CallState;
@@ -14,12 +22,14 @@ interface CallContextType {
     incomingCall: { callId: string; caller: AppUser } | null;
     isMuted: boolean;
     timer: number;
-    findRandomCall: () => Promise<void>;
+    messages: Message[];
+    findRandomCall: (interests: string[]) => Promise<void>;
     startCall: (callee: AppUser) => Promise<void>;
     acceptCall: () => Promise<void>;
     rejectCall: () => Promise<void>;
     hangup: () => void;
     toggleMute: () => void;
+    sendMessage: (text: string) => Promise<void>;
     localStream: MediaStream | null;
     remoteStream: MediaStream | null;
     sendFriendRequest: () => Promise<void>;
@@ -58,6 +68,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
     const [friendRequests, setFriendRequests] = useState<any[]>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
     
     const pc = useRef<RTCPeerConnection | null>(null);
     const callIdRef = useRef<string | null>(null);
@@ -149,6 +160,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         setConnectedUser(null);
         setIncomingCall(null);
         setTimer(0);
+        setMessages([]);
         callIdRef.current = null;
         startTimeRef.current = null;
         callTypeRef.current = null;
@@ -251,7 +263,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         }
     }, [hangup, startSilentAudio]);
     
-    const createCall = useCallback(async (callee?: AppUser, setupDone = false) => {
+    const createCall = useCallback(async (callee?: AppUser, setupDone = false, interests: string[] = []) => {
         if (!firestore || !user) return;
 
         setCallState(callee ? 'outgoing' : 'searching');
@@ -268,6 +280,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         const callDocRef = doc(collection(firestore, 'rooms'));
         callIdRef.current = callDocRef.id;
         const callerCandidatesCollection = collection(callDocRef, 'callerCandidates');
+        const messagesCollection = collection(callDocRef, 'messages');
 
         pc.current.onicecandidate = event => {
             event.candidate && addDoc(callerCandidatesCollection, event.candidate.toJSON());
@@ -281,6 +294,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             callerId: user.id,
             callerName: user.name,
             callerAvatar: user.avatar,
+            callerInterests: interests,
             calleeId: callee ? callee.id : null,
             answered: false,
             createdAt: serverTimestamp()
@@ -304,7 +318,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
                 pc.current.setRemoteDescription(new RTCSessionDescription(data.answer));
             }
         });
-
+        
         const unsub2 = onSnapshot(collection(callDocRef, 'calleeCandidates'), snapshot => {
             snapshot.docChanges().forEach(change => {
                 if (change.type === 'added' && pc.current?.signalingState !== 'closed') {
@@ -312,10 +326,17 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
                 }
             });
         });
-        unsubscribers.current.push(unsub1, unsub2);
+
+        const messagesQuery = query(messagesCollection, orderBy('timestamp', 'asc'));
+        const unsub3 = onSnapshot(messagesQuery, (snapshot) => {
+            const newMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+            setMessages(newMessages);
+        });
+
+        unsubscribers.current.push(unsub1, unsub2, unsub3);
     }, [firestore, user, setupPeerConnection, hangup, toast]);
 
-    const joinCall = useCallback(async (roomId: string, isAccepting: boolean, setupDone = false) => {
+    const joinCall = useCallback(async (roomId: string, isAccepting: boolean, setupDone = false, interests: string[] = []) => {
          if (!firestore || !user) return;
          callIdRef.current = roomId;
          
@@ -324,6 +345,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
 
          const roomRef = doc(firestore, 'rooms', roomId);
          const calleeCandidatesCollection = collection(roomRef, 'calleeCandidates');
+         const messagesCollection = collection(roomRef, 'messages');
          pc.current.onicecandidate = event => {
              event.candidate && addDoc(calleeCandidatesCollection, event.candidate.toJSON());
          };
@@ -342,7 +364,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
          const answer = await pc.current.createAnswer();
          await pc.current.setLocalDescription(answer);
 
-         await updateDoc(roomRef, { answer, calleeId: user.id, calleeName: user.name, calleeAvatar: user.avatar, answered: true });
+         await updateDoc(roomRef, { answer, calleeId: user.id, calleeName: user.name, calleeAvatar: user.avatar, calleeInterests: interests, answered: true });
 
          const unsub1 = onSnapshot(roomRef, (snapshot) => {
             if (!snapshot.exists() && callStateRef.current !== 'idle' && callStateRef.current !== 'disconnected') {
@@ -359,14 +381,21 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
                  }
              });
          });
-         unsubscribers.current.push(unsub1, unsub2);
+         
+        const messagesQuery = query(messagesCollection, orderBy('timestamp', 'asc'));
+        const unsub3 = onSnapshot(messagesQuery, (snapshot) => {
+            const newMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+            setMessages(newMessages);
+        });
+         
+         unsubscribers.current.push(unsub1, unsub2, unsub3);
          
          if (isAccepting) setIncomingCall(null);
     }, [firestore, user, setupPeerConnection, cleanupCall, hangup, toast]);
 
     const startCall = useCallback((callee: AppUser) => createCall(callee, false), [createCall]);
 
-    const findRandomCall = useCallback(async () => {
+    const findRandomCall = useCallback(async (interests: string[]) => {
         if (!firestore || !user) return;
         setCallState('searching');
 
@@ -387,17 +416,32 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             .filter(room => room.data.callerId !== user.id && !room.data.calleeId);
 
         if (availableRooms.length > 0) {
-            const randomRoom = availableRooms[Math.floor(Math.random() * availableRooms.length)];
-            await joinCall(randomRoom.id, false, true);
+            let roomToJoin = null;
+
+            if (interests.length > 0) {
+                const matchingRooms = availableRooms.filter(room =>
+                    room.data.callerInterests?.some((i: string) => interests.includes(i))
+                );
+
+                if (matchingRooms.length > 0) {
+                    roomToJoin = matchingRooms[Math.floor(Math.random() * matchingRooms.length)];
+                }
+            }
+
+            if (!roomToJoin) {
+                roomToJoin = availableRooms[Math.floor(Math.random() * availableRooms.length)];
+            }
+            
+            await joinCall(roomToJoin.id, false, true, interests);
         } else {
-            await createCall(undefined, true);
+            await createCall(undefined, true, interests);
         }
     }, [firestore, user, setupPeerConnection, joinCall, createCall, toast]);
     
     const acceptCall = useCallback(() => {
         if (!incomingCall) return;
-        joinCall(incomingCall.callId, true, false);
-    }, [incomingCall, joinCall]);
+        joinCall(incomingCall.callId, true, false, user.interests);
+    }, [incomingCall, joinCall, user.interests]);
 
     const rejectCall = useCallback(async () => {
         if (incomingCall && firestore) {
@@ -406,6 +450,17 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         setIncomingCall(null);
         setCallState('idle');
     }, [incomingCall, firestore]);
+    
+    const sendMessage = useCallback(async (text: string) => {
+        if (!firestore || !user || !callIdRef.current || text.trim() === '') return;
+        const messagesCollection = collection(firestore, 'rooms', callIdRef.current, 'messages');
+        await addDoc(messagesCollection, {
+            text,
+            senderId: user.id,
+            senderName: user.name,
+            timestamp: serverTimestamp()
+        });
+    }, [firestore, user]);
 
     const sendFriendRequest = useCallback(async () => {
         if (!firestore || !user || !connectedUser) return;
@@ -467,8 +522,8 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
     }, [callState]);
 
     const value = {
-        callState, connectedUser, incomingCall, isMuted, timer,
-        findRandomCall, startCall, acceptCall, rejectCall, hangup, toggleMute,
+        callState, connectedUser, incomingCall, isMuted, timer, messages,
+        findRandomCall, startCall, acceptCall, rejectCall, hangup, toggleMute, sendMessage,
         localStream, remoteStream, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, friendRequests
     };
 

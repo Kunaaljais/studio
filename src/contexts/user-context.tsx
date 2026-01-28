@@ -9,6 +9,7 @@ type AppUser = {
   id: string;
   name: string;
   avatar: string;
+  interests?: string[];
 };
 
 interface UserContextType {
@@ -40,6 +41,7 @@ export const UserProvider = ({ children }: PropsWithChildren) => {
                 online: true,
                 lastSeen: serverTimestamp(),
                 callState: 'idle',
+                interests: [],
             };
             setDoc(userRef, userData, { merge: true });
 

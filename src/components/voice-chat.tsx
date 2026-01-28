@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils"
 import { useCall } from "@/contexts/call-context"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { ChatBox } from "@/components/chat-box"
 
 const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -36,6 +38,7 @@ export function VoiceChat() {
   const [autoCall, setAutoCall] = useState(false);
   const [showDisconnectedMessage, setShowDisconnectedMessage] = useState(false);
   const [confirmHangup, setConfirmHangup] = useState(false);
+  const [interests, setInterests] = useState('');
   const prevCallState = useRef(callState);
 
   useEffect(() => {
@@ -54,11 +57,11 @@ export function VoiceChat() {
     }
 
     if (prevCallState.current === 'connected' && callState === 'idle' && autoCall) {
-        findRandomCall();
+        handleFindCall();
     }
     prevCallState.current = callState;
 
-  }, [callState, autoCall, findRandomCall]);
+  }, [callState, autoCall]);
 
 
   const handleAddFriend = () => {
@@ -71,9 +74,14 @@ export function VoiceChat() {
     });
   };
 
+  const handleFindCall = () => {
+    const parsedInterests = interests.split(',').map(i => i.trim().toLowerCase()).filter(Boolean);
+    findRandomCall(parsedInterests);
+  };
+
   const handleHangupClick = () => {
     if (callState === 'idle') {
-        findRandomCall();
+        handleFindCall();
         return;
     }
 
@@ -113,7 +121,7 @@ export function VoiceChat() {
             </div>
 
             <div className="flex justify-center items-start">
-                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 hover:bg-transparent" onClick={findRandomCall}>
+                <Button variant="ghost" className="flex flex-col items-center justify-center h-auto px-2 py-1 hover:bg-transparent" onClick={handleFindCall}>
                     <div className="bg-green-500 hover:bg-green-600 rounded-full p-4 transition-colors">
                     <Phone className="w-7 h-7 text-white"/>
                     </div>
@@ -142,12 +150,18 @@ export function VoiceChat() {
                 </Button>
             </div>
             
-            <div className="flex flex-col items-center gap-2 mt-1">
-                <div className="flex items-center space-x-2">
+            <div className="flex flex-col items-center gap-2 mt-2 w-full max-w-sm">
+                <Input
+                  type="text"
+                  placeholder="Enter interests (e.g. gaming, movies)"
+                  value={interests}
+                  onChange={(e) => setInterests(e.target.value)}
+                  className="bg-background/50 text-center"
+                />
+                <div className="flex items-center space-x-2 mt-1">
                     <Checkbox id="auto-call" checked={autoCall} onCheckedChange={(checked) => setAutoCall(!!checked)} />
                     <Label htmlFor="auto-call" className="text-sm text-muted-foreground">Enable Auto Call</Label>
                 </div>
-                <p className="text-xs text-muted-foreground">Tap the Call button to call a new stranger</p>
             </div>
       </div>
     );
@@ -220,7 +234,7 @@ export function VoiceChat() {
     <>
     <Card className="w-full shadow-2xl rounded-t-none">
       <CardContent className="p-0">
-        <div className="flex flex-col items-center justify-center p-6 gap-4 h-[420px]">
+        <div className="flex flex-col items-center justify-between p-6 gap-4 min-h-[420px]">
             <div className={cn(
                 "w-48 h-48 rounded-full border-4 flex flex-col items-center justify-center transition-colors duration-500",
                 callState === 'connected' ? 'border-green-500' : 'border-primary'
@@ -236,6 +250,12 @@ export function VoiceChat() {
               )}
             </div>
         </div>
+        {callState === 'connected' && (
+          <>
+            <div className="border-t"></div>
+            <ChatBox />
+          </>
+        )}
       </CardContent>
     </Card>
     {connectedUser && <ReportDialog user={connectedUser} open={isReportDialogOpen} onOpenChange={setReportDialogOpen} />}
