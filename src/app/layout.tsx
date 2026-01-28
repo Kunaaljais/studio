@@ -21,7 +21,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-        <Script src="https://pl28587811.effectivegatecpm.com/b8/cc/07/b8cc078cc341247ee51811d2d77a0a01.js" />
+        <Script src="https://pl28587811.effectivegatecpm.com/b8/cc/07/b8cc078cc341247ee51811d2d77a0a01.js" strategy="beforeInteractive" />
       </head>
       <body className="font-body antialiased">
         <FirebaseProvider>
