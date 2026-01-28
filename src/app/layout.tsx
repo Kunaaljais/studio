@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseProvider } from '@/firebase/provider';
 import { UserProvider } from '@/contexts/user-context';
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: 'RandomTalk.online',
@@ -28,6 +29,7 @@ export default function RootLayout({
           </UserProvider>
         </FirebaseProvider>
         <Toaster />
+        <Analytics />
       </body>
     </html>
   );
