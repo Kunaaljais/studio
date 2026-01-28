@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, PropsWithChildren } fro
 import { generateRandomUser } from '@/lib/data';
 import { Loader2 } from 'lucide-react';
 import { useFirestore } from '@/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 type AppUser = {
   id: string;
@@ -34,6 +34,10 @@ export const UserProvider = ({ children }: PropsWithChildren) => {
     const [user, setUser] = useState<AppUser | null>(null);
 
     useEffect(() => {
+        if (!firestore) return;
+
+        let cleanupFunction: (() => void) | null = null;
+        
         const initializeUser = async () => {
             let country = 'Unknown';
             let countryCode = 'XX';
@@ -58,31 +62,42 @@ export const UserProvider = ({ children }: PropsWithChildren) => {
             };
             setUser(generatedUser);
 
-            if (firestore) {
-                const userRef = doc(firestore, "users", generatedUser.id);
-                const userData = {
-                    ...generatedUser,
-                    online: true,
-                    lastSeen: serverTimestamp(),
-                    callState: 'idle',
-                    interests: [],
-                };
-                setDoc(userRef, userData, { merge: true });
+            const userRef = doc(firestore, "users", generatedUser.id);
+            const userData = {
+                ...generatedUser,
+                online: true,
+                lastSeen: serverTimestamp(),
+                callState: 'idle',
+                interests: [],
+            };
+            await setDoc(userRef, userData, { merge: true });
 
-                const handleBeforeUnload = () => {
-                    setDoc(userRef, { online: false, callState: 'idle', lastSeen: serverTimestamp() }, { merge: true });
-                };
+            const handleBeforeUnload = () => {
+                // Using updateDoc is safer as it won't recreate a deleted document
+                updateDoc(userRef, { online: false, lastSeen: serverTimestamp() }).catch(() => {});
+            };
 
-                window.addEventListener("beforeunload", handleBeforeUnload);
+            window.addEventListener("beforeunload", handleBeforeUnload);
 
-                return () => {
-                    handleBeforeUnload();
-                    window.removeEventListener("beforeunload", handleBeforeUnload);
-                };
-            }
+            // Set up a periodic 'heartbeat' to update the lastSeen timestamp
+            const heartbeatInterval = setInterval(() => {
+                updateDoc(userRef, { lastSeen: serverTimestamp() }).catch(() => {});
+            }, 60 * 1000); // every 60 seconds
+
+            cleanupFunction = () => {
+                clearInterval(heartbeatInterval);
+                handleBeforeUnload();
+                window.removeEventListener("beforeunload", handleBeforeUnload);
+            };
         };
 
         initializeUser();
+        
+        return () => {
+            if (cleanupFunction) {
+                cleanupFunction();
+            }
+        }
     }, [firestore]);
 
     if (!user) {
