@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useRef } from "react"
@@ -23,6 +24,14 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { ChatBox } from "@/components/chat-box"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { countries, getFlagEmoji } from "@/lib/countries"
 
 const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -39,6 +48,7 @@ export function VoiceChat() {
   const [showDisconnectedMessage, setShowDisconnectedMessage] = useState(false);
   const [confirmHangup, setConfirmHangup] = useState(false);
   const [interests, setInterests] = useState('');
+  const [countryFilter, setCountryFilter] = useState("WW"); // WW for Worldwide
   const prevCallState = useRef(callState);
   const localHangupRef = useRef(false);
 
@@ -80,7 +90,7 @@ export function VoiceChat() {
 
   const handleFindCall = () => {
     const parsedInterests = interests.split(',').map(i => i.trim().toLowerCase()).filter(Boolean);
-    findRandomCall(parsedInterests);
+    findRandomCall(parsedInterests, countryFilter);
   };
 
   const handleHangupClick = () => {
@@ -156,6 +166,18 @@ export function VoiceChat() {
             </div>
             
             <div className="flex flex-col items-center gap-2 mt-2 w-full max-w-sm">
+                <Select value={countryFilter} onValueChange={setCountryFilter}>
+                    <SelectTrigger className="w-full bg-background/50">
+                        <SelectValue placeholder="Select a country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {countries.map(country => (
+                            <SelectItem key={country.code} value={country.code}>
+                                {country.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
                 <Input
                   type="text"
                   placeholder="Enter interests (e.g. gaming, movies)"
@@ -179,8 +201,17 @@ export function VoiceChat() {
     return (
       <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
         <div className="flex flex-col items-center justify-center min-h-[2.5rem]">
-          {isConnected && <h2 className="text-xl font-bold">{connectedUser?.name}</h2>}
-          {callState === 'outgoing' && <p className="text-muted-foreground">Calling {connectedUser?.name}...</p>}
+           {isConnected && connectedUser && (
+            <h2 className="text-xl font-bold flex items-center gap-2">
+                {connectedUser.name}
+                {connectedUser.country && (
+                    <span className="text-sm font-normal text-muted-foreground flex items-center gap-1">
+                        from {connectedUser.country} {getFlagEmoji(connectedUser.countryCode || '')}
+                    </span>
+                )}
+            </h2>
+          )}
+          {callState === 'outgoing' && connectedUser && <p className="text-muted-foreground">Calling {connectedUser.name}...</p>}
           {callState === 'searching' && (
              <div className="text-center">
                 <p className="text-muted-foreground">
@@ -188,11 +219,9 @@ export function VoiceChat() {
                         ? 'Searching for someone with similar interests...'
                         : 'Searching for a random user...'}
                 </p>
-                {hasInterests && (
-                    <p className="text-xs text-muted-foreground/80">
-                        (If none are found, we'll connect you randomly)
-                    </p>
-                )}
+                <p className="text-xs text-muted-foreground/80">
+                    (If none are found, we'll connect you randomly)
+                </p>
             </div>
           )}
         </div>

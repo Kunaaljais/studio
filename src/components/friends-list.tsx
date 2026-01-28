@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -14,6 +15,7 @@ import { getFriendsFromStorage, removeFriendFromStorage } from "@/lib/local-stor
 import type { Friend } from "@/lib/data"
 import { useFirestore } from "@/firebase"
 import { collection, query, where, onSnapshot } from "firebase/firestore"
+import { getFlagEmoji } from "@/lib/countries"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -135,7 +137,17 @@ export function FriendsList() {
                         </div>
                         <div className="flex-1">
                           <p className="font-semibold">{friend.name}</p>
-                          <p className="text-sm text-muted-foreground">{onlineStatus[friend.id] ? "Online" : "Offline"}</p>
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <span>{onlineStatus[friend.id] ? "Online" : "Offline"}</span>
+                            {friend.country && (
+                                <>
+                                    <span>-</span>
+                                    <span className="flex items-center gap-1">
+                                        {friend.country} {getFlagEmoji(friend.countryCode || '')}
+                                    </span>
+                                </>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Button variant="ghost" size="icon" disabled={!onlineStatus[friend.id] || callState !== 'idle'} onClick={() => handleCall(friend)}>
@@ -186,7 +198,9 @@ export function FriendsList() {
                                   </Avatar>
                                   <div className="flex-1">
                                       <p className="font-semibold">{req.fromName}</p>
-                                      <p className="text-sm text-muted-foreground">Wants to be your friend</p>
+                                      <p className="text-sm text-muted-foreground">
+                                        Wants to be your friend {req.fromCountry && `from ${req.fromCountry}`} {getFlagEmoji(req.fromCountryCode || '')}
+                                      </p>
                                   </div>
                                   <div className="flex gap-2">
                                       <Button size="sm" onClick={() => handleAccept(req)}>Accept</Button>

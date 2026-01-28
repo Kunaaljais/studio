@@ -1,7 +1,10 @@
+
 export type Friend = {
   id: string;
   name: string;
   avatar: string;
+  country?: string;
+  countryCode?: string;
 };
 
 export type AppUser = {
@@ -9,6 +12,8 @@ export type AppUser = {
   name: string;
   avatar: string;
   interests?: string[];
+  country?: string;
+  countryCode?: string;
 };
 
 export const generateRandomUser = (): AppUser => {
@@ -19,5 +24,7 @@ export const generateRandomUser = (): AppUser => {
         name: `User #${randomId}`,
         avatar: ``,
         interests: [],
+        country: "Unknown",
+        countryCode: "XX",
     }
 }

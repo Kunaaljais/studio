@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "user": {
@@ -31,6 +32,14 @@
             "type": "string"
           },
           "description": "A list of user interests."
+        },
+        "country": {
+          "type": "string",
+          "description": "The user's country name."
+        },
+        "countryCode": {
+          "type": "string",
+          "description": "The user's two-letter country code."
         }
       },
       "required": ["id", "name", "avatar", "online"]
@@ -60,6 +69,8 @@
           "type": "array",
           "items": { "type": "string" }
         },
+        "callerCountry": { "type": "string" },
+        "callerCountryCode": { "type": "string" },
         "calleeId": {
             "type": "string"
         },
@@ -73,6 +84,8 @@
           "type": "array",
           "items": { "type": "string" }
         },
+        "calleeCountry": { "type": "string" },
+        "calleeCountryCode": { "type": "string" },
         "answered": {
             "type": "boolean"
         }
@@ -133,9 +146,13 @@
         "fromId": { "type": "string" },
         "fromName": { "type": "string" },
         "fromAvatar": { "type": "string" },
+        "fromCountry": { "type": "string" },
+        "fromCountryCode": { "type": "string" },
         "toId": { "type": "string" },
         "toName": { "type": "string" },
         "toAvatar": { "type": "string" },
+        "toCountry": { "type": "string" },
+        "toCountryCode": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },

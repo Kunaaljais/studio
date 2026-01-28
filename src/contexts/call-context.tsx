@@ -1,3 +1,4 @@
+
 'use client';
 import { createContext, useContext, useState, useEffect, useRef, useCallback, PropsWithChildren } from 'react';
 import { useFirestore } from '@/firebase';
@@ -6,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { saveFriendToStorage, saveCallToStorage } from '@/lib/local-storage';
 
 type CallState = 'idle' | 'searching' | 'outgoing' | 'incoming' | 'connected' | 'disconnected';
-export type AppUser = { id: string; name: string; avatar: string; interests?: string[] };
+export type AppUser = { id: string; name: string; avatar: string; interests?: string[]; country?: string; countryCode?: string; };
 export type Message = {
     id: string;
     text: string;
@@ -23,7 +24,7 @@ interface CallContextType {
     isMuted: boolean;
     timer: number;
     messages: Message[];
-    findRandomCall: (interests: string[]) => Promise<void>;
+    findRandomCall: (interests: string[], countryCode: string) => Promise<void>;
     startCall: (callee: AppUser) => Promise<void>;
     acceptCall: () => Promise<void>;
     rejectCall: () => Promise<void>;
@@ -166,7 +167,18 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             const duration = Math.floor((new Date().getTime() - startTimeRef.current.getTime()) / 1000);
             if (duration > 0) {
                  const type = callTypeRef.current === 'random' ? (Math.random() > 0.5 ? 'incoming' : 'outgoing') : (callTypeRef.current || 'incoming');
-                 saveCallToStorage({ user: connectedUser, duration, date: new Date().toISOString(), type: type });
+                 saveCallToStorage({ 
+                    user: {
+                        id: connectedUser.id,
+                        name: connectedUser.name,
+                        avatar: connectedUser.avatar,
+                        country: connectedUser.country,
+                        countryCode: connectedUser.countryCode,
+                    }, 
+                    duration, 
+                    date: new Date().toISOString(), 
+                    type: type
+                 });
             }
         }
         cleanupCall();
@@ -183,7 +195,13 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
                 const callData = callDoc.data();
                 setIncomingCall({
                     callId: callDoc.id,
-                    caller: { id: callData.callerId, name: callData.callerName, avatar: callData.callerAvatar }
+                    caller: { 
+                        id: callData.callerId, 
+                        name: callData.callerName, 
+                        avatar: callData.callerAvatar,
+                        country: callData.callerCountry,
+                        countryCode: callData.callerCountryCode
+                    }
                 });
                 setCallState('incoming');
             }
@@ -201,7 +219,13 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             snapshot.docChanges().forEach(async (change) => {
                 if (change.type === 'modified') {
                     const request = change.doc.data();
-                    const friendUser = { id: request.toId, name: request.toName, avatar: request.toAvatar };
+                    const friendUser = { 
+                        id: request.toId, 
+                        name: request.toName, 
+                        avatar: request.toAvatar,
+                        country: request.toCountry,
+                        countryCode: request.toCountryCode
+                    };
                     if (request.status === 'accepted') {
                         saveFriendToStorage(friendUser);
                         window.dispatchEvent(new Event('friends-updated'));
@@ -253,7 +277,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         }
     }, [hangup, startSilentAudio]);
     
-    const createCall = useCallback(async (callee?: AppUser, setupDone = false, interests: string[] = []) => {
+    const createCall = useCallback(async (callee?: AppUser, setupDone = false, interests: string[] = [], countryCode: string = 'WW') => {
         if (!firestore || !user) return;
 
         setCallState(callee ? 'outgoing' : 'searching');
@@ -285,6 +309,8 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             callerName: user.name,
             callerAvatar: user.avatar,
             callerInterests: interests,
+            callerCountry: user.country,
+            callerCountryCode: user.countryCode,
             calleeId: callee ? callee.id : null,
             answered: false,
             createdAt: serverTimestamp()
@@ -329,7 +355,6 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
                 const roomDoc = await transaction.get(roomRef);
 
                 if (!roomDoc.exists() || roomDoc.data().answered) {
-                    // Room is already taken or does not exist, so we don't proceed.
                     throw new Error("Room is already taken or does not exist.");
                 }
 
@@ -351,12 +376,20 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
                     calleeName: user.name,
                     calleeAvatar: user.avatar,
                     calleeInterests: interests,
+                    calleeCountry: user.country,
+                    calleeCountryCode: user.countryCode,
                     answered: true,
                 });
                 
                 callIdRef.current = roomId;
                 callTypeRef.current = isAccepting ? 'incoming' : 'random';
-                setConnectedUser({id: roomData.callerId, name: roomData.callerName, avatar: roomData.callerAvatar});
+                setConnectedUser({
+                    id: roomData.callerId, 
+                    name: roomData.callerName, 
+                    avatar: roomData.callerAvatar,
+                    country: roomData.callerCountry,
+                    countryCode: roomData.callerCountryCode
+                });
 
                 const calleeCandidatesCollection = collection(roomRef, 'calleeCandidates');
                 pc.current.onicecandidate = event => {
@@ -401,21 +434,34 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
 
     }, [firestore, user, setupPeerConnection, hangup, toast, cleanupCall]);
 
-    const startCall = useCallback((callee: AppUser) => createCall(callee, false), [createCall]);
-
-    const findRandomCall = useCallback(async (interests: string[]) => {
+    const startCall = useCallback((callee: AppUser) => createCall(callee, false, callee.interests, callee.countryCode), [createCall]);
+    
+    const findRandomCall = useCallback(async (interests: string[], countryCode: string) => {
         if (!firestore || !user) return;
         setCallState('searching');
-
-        await new Promise(resolve => setTimeout(resolve, Math.random() * 1000));
     
-        const roomsQuery = query(collection(firestore, 'rooms'), where('answered', '==', false), where('calleeId', '==', null));
-        const querySnapshot = await getDocs(roomsQuery);
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 1000));
         
-        const availableRooms = querySnapshot.docs
+        let baseQuery = query(collection(firestore, 'rooms'), where('answered', '==', false), where('calleeId', '==', null));
+        
+        const countrySpecificQuery = countryCode !== 'WW' 
+            ? query(baseQuery, where('callerCountryCode', '==', countryCode))
+            : baseQuery;
+            
+        const countrySnapshot = await getDocs(countrySpecificQuery);
+
+        let availableRooms = countrySnapshot.docs
             .map(doc => ({ id: doc.id, data: doc.data() }))
             .filter(room => room.data.callerId !== user.id);
-    
+            
+        // If no rooms in specific country, and filter was not worldwide, search worldwide
+        if (availableRooms.length === 0 && countryCode !== 'WW') {
+            const worldwideSnapshot = await getDocs(baseQuery);
+            availableRooms = worldwideSnapshot.docs
+                .map(doc => ({ id: doc.id, data: doc.data() }))
+                .filter(room => room.data.callerId !== user.id);
+        }
+
         availableRooms.sort(() => 0.5 - Math.random());
     
         let roomToJoin: {id: string; data: any} | undefined = undefined;
@@ -423,6 +469,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         if (interests.length > 0) {
             roomToJoin = availableRooms.find(room => room.data.callerInterests?.some((i: string) => interests.includes(i)));
         }
+        
         if (!roomToJoin && availableRooms.length > 0) {
             roomToJoin = availableRooms[0];
         }
@@ -435,7 +482,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         }
         
         if(callStateRef.current === 'searching') {
-            await createCall(undefined, false, interests);
+            await createCall(undefined, false, interests, countryCode);
         }
     }, [firestore, user, joinCall, createCall]);
     
@@ -483,8 +530,8 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         }
 
         await addDoc(collection(firestore, 'friendRequests'), {
-            fromId: user.id, fromName: user.name, fromAvatar: user.avatar,
-            toId: connectedUser.id, toName: connectedUser.name, toAvatar: connectedUser.avatar,
+            fromId: user.id, fromName: user.name, fromAvatar: user.avatar, fromCountry: user.country, fromCountryCode: user.countryCode,
+            toId: connectedUser.id, toName: connectedUser.name, toAvatar: connectedUser.avatar, toCountry: connectedUser.country, toCountryCode: connectedUser.countryCode,
             status: 'pending', createdAt: serverTimestamp()
         });
         toast({ title: 'Friend Request Sent', description: `Your friend request has been sent to ${connectedUser.name}.` });
@@ -492,7 +539,13 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
 
     const acceptFriendRequest = useCallback(async (request: any) => {
         if (!firestore) return;
-        const friend = { id: request.fromId, name: request.fromName, avatar: request.fromAvatar };
+        const friend = { 
+            id: request.fromId, 
+            name: request.fromName, 
+            avatar: request.fromAvatar,
+            country: request.fromCountry,
+            countryCode: request.fromCountryCode,
+        };
         saveFriendToStorage(friend);
         window.dispatchEvent(new Event('friends-updated'));
         

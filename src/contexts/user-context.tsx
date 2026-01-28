@@ -1,3 +1,4 @@
+
 'use client';
 import { createContext, useContext, useState, useEffect, PropsWithChildren } from 'react';
 import { generateRandomUser } from '@/lib/data';
@@ -10,6 +11,8 @@ type AppUser = {
   name: string;
   avatar: string;
   interests?: string[];
+  country?: string;
+  countryCode?: string;
 };
 
 interface UserContextType {
@@ -31,32 +34,55 @@ export const UserProvider = ({ children }: PropsWithChildren) => {
     const [user, setUser] = useState<AppUser | null>(null);
 
     useEffect(() => {
-        const generatedUser = generateRandomUser();
-        setUser(generatedUser);
+        const initializeUser = async () => {
+            let country = 'Unknown';
+            let countryCode = 'XX';
 
-        if (firestore) {
-            const userRef = doc(firestore, "users", generatedUser.id);
-            const userData = {
-                ...generatedUser,
-                online: true,
-                lastSeen: serverTimestamp(),
-                callState: 'idle',
-                interests: [],
+            try {
+                // This API is being used for demonstration purposes.
+                // For production use, consider a more robust solution with rate limiting and fallbacks.
+                const response = await fetch('https://ip-api.com/json/?fields=country,countryCode');
+                if (response.ok) {
+                    const data = await response.json();
+                    country = data.country;
+                    countryCode = data.countryCode;
+                }
+            } catch (error) {
+                console.warn("Could not fetch user's country. Using default.", error);
+            }
+
+            const generatedUser = {
+                ...generateRandomUser(),
+                country,
+                countryCode,
             };
-            setDoc(userRef, userData, { merge: true });
+            setUser(generatedUser);
 
-            const handleBeforeUnload = () => {
-                // Use setDoc with merge to avoid race conditions on unload
-                setDoc(userRef, { online: false, lastSeen: serverTimestamp() }, { merge: true });
-            };
+            if (firestore) {
+                const userRef = doc(firestore, "users", generatedUser.id);
+                const userData = {
+                    ...generatedUser,
+                    online: true,
+                    lastSeen: serverTimestamp(),
+                    callState: 'idle',
+                    interests: [],
+                };
+                setDoc(userRef, userData, { merge: true });
 
-            window.addEventListener("beforeunload", handleBeforeUnload);
+                const handleBeforeUnload = () => {
+                    setDoc(userRef, { online: false, callState: 'idle', lastSeen: serverTimestamp() }, { merge: true });
+                };
 
-            return () => {
-                handleBeforeUnload();
-                window.removeEventListener("beforeunload", handleBeforeUnload);
-            };
-        }
+                window.addEventListener("beforeunload", handleBeforeUnload);
+
+                return () => {
+                    handleBeforeUnload();
+                    window.removeEventListener("beforeunload", handleBeforeUnload);
+                };
+            }
+        };
+
+        initializeUser();
     }, [firestore]);
 
     if (!user) {

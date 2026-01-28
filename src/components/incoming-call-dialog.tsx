@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useCall } from "@/contexts/call-context"
+import { getFlagEmoji } from "@/lib/countries"
 
 export function IncomingCallDialog() {
   const { incomingCall, acceptCall, rejectCall } = useCall()
@@ -34,14 +36,22 @@ export function IncomingCallDialog() {
         <AlertDialogHeader>
           <AlertDialogTitle>Incoming Call</AlertDialogTitle>
           <AlertDialogDescription>
-            You have an incoming call from {incomingCall.caller.name}.
+            You have an incoming call from {incomingCall.caller.name}
+            {incomingCall.caller.country && ` from ${incomingCall.caller.country}`}.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="flex items-center justify-center gap-4 py-4">
           <Avatar className="h-24 w-24">
             <AvatarFallback>{incomingCall.caller.name.charAt(0)}</AvatarFallback>
           </Avatar>
-          <p className="text-lg font-semibold">{incomingCall.caller.name}</p>
+          <div className="text-center">
+            <p className="text-lg font-semibold">{incomingCall.caller.name}</p>
+            {incomingCall.caller.country && (
+                <p className="text-sm text-muted-foreground">
+                    {incomingCall.caller.country} {getFlagEmoji(incomingCall.caller.countryCode || '')}
+                </p>
+            )}
+          </div>
         </div>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={handleReject}>Reject</AlertDialogCancel>

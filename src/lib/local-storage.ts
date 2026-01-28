@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Friend } from './data';
@@ -8,6 +9,8 @@ export type Call = {
     id: string;
     name: string;
     avatar: string;
+    country?: string;
+    countryCode?: string;
   };
   duration: number;
   date: string; // ISO string
