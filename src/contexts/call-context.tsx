@@ -321,38 +321,30 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
 
     const joinCall = useCallback(async (roomId: string, isAccepting: boolean, setupDone = false, interests: string[] = []): Promise<boolean> => {
         if (!firestore || !user) return false;
-    
-        if (!setupDone) await setupPeerConnection();
-        if (!pc.current) {
-            if (!isAccepting) {
-                toast({ variant: 'destructive', title: 'Permission Denied', description: 'Microphone access is required.' });
-            }
-            cleanupCall();
-            return false;
-        }
-    
-        const roomRef = doc(firestore, 'rooms', roomId);
         
-        // Preliminary check
-        const initialRoomDoc = await getDoc(roomRef);
-        if (!initialRoomDoc.exists() || initialRoomDoc.data().answered) {
-             console.error("Join call failed: Room is already answered or does not exist.");
-             return false;
-        }
-        
-        const roomData = initialRoomDoc.data();
-        
-        await pc.current.setRemoteDescription(new RTCSessionDescription(roomData.offer));
-        const answer = await pc.current.createAnswer();
-        await pc.current.setLocalDescription(answer);
-    
-        // Final atomic update
+        let success = false;
         try {
             await runTransaction(firestore, async (transaction) => {
+                const roomRef = doc(firestore, 'rooms', roomId);
                 const roomDoc = await transaction.get(roomRef);
+
                 if (!roomDoc.exists() || roomDoc.data().answered) {
+                    // Room is already taken or does not exist, so we don't proceed.
                     throw new Error("Room is already taken or does not exist.");
                 }
+
+                if (!setupDone) await setupPeerConnection();
+                if (!pc.current) {
+                    if (!isAccepting) toast({ variant: 'destructive', title: 'Permission Denied', description: 'Microphone access is required.' });
+                    cleanupCall();
+                    throw new Error("Peer connection setup failed.");
+                }
+
+                const roomData = roomDoc.data();
+                await pc.current.setRemoteDescription(new RTCSessionDescription(roomData.offer));
+                const answer = await pc.current.createAnswer();
+                await pc.current.setLocalDescription(answer);
+
                 transaction.update(roomRef, {
                     answer,
                     calleeId: user.id,
@@ -361,49 +353,52 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
                     calleeInterests: interests,
                     answered: true,
                 });
+                
+                callIdRef.current = roomId;
+                callTypeRef.current = isAccepting ? 'incoming' : 'random';
+                setConnectedUser({id: roomData.callerId, name: roomData.callerName, avatar: roomData.callerAvatar});
+
+                const calleeCandidatesCollection = collection(roomRef, 'calleeCandidates');
+                pc.current.onicecandidate = event => {
+                    event.candidate && addDoc(calleeCandidatesCollection, event.candidate.toJSON());
+                };
+                
+                const messagesCollection = collection(roomRef, 'messages');
+                
+                const unsub1 = onSnapshot(roomRef, (snapshot) => {
+                    if (!snapshot.exists() && callStateRef.current !== 'idle' && callStateRef.current !== 'disconnected') {
+                        toast({ variant: 'destructive', title: 'Call Ended', description: 'The other user disconnected.' });
+                        hangup();
+                    }
+                });
+
+                const unsub2 = onSnapshot(collection(roomRef, 'callerCandidates'), snapshot => {
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === 'added' && pc.current?.signalingState !== 'closed') {
+                            pc.current?.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+                        }
+                    });
+                });
+                
+                const messagesQuery = query(messagesCollection, orderBy('timestamp', 'asc'));
+                const unsub3 = onSnapshot(messagesQuery, (snapshot) => {
+                    const newMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+                    setMessages(newMessages);
+                });
+                
+                unsubscribers.current.push(unsub1, unsub2, unsub3);
+                
+                success = true;
             });
         } catch (e) {
             console.error("Join call transaction failed, room was likely taken:", e);
-            return false;
+            success = false;
         }
-    
-        callIdRef.current = roomId;
-        callTypeRef.current = isAccepting ? 'incoming' : 'random';
-        setConnectedUser({id: roomData.callerId, name: roomData.callerName, avatar: roomData.callerAvatar});
-    
-        const calleeCandidatesCollection = collection(roomRef, 'calleeCandidates');
-        pc.current.onicecandidate = event => {
-            event.candidate && addDoc(calleeCandidatesCollection, event.candidate.toJSON());
-        };
-        
-        const messagesCollection = collection(roomRef, 'messages');
-        
-        const unsub1 = onSnapshot(roomRef, (snapshot) => {
-            if (!snapshot.exists() && callStateRef.current !== 'idle' && callStateRef.current !== 'disconnected') {
-                toast({ variant: 'destructive', title: 'Call Ended', description: 'The other user disconnected.' });
-                hangup();
-            }
-        });
-    
-        const unsub2 = onSnapshot(collection(roomRef, 'callerCandidates'), snapshot => {
-            snapshot.docChanges().forEach(change => {
-                if (change.type === 'added' && pc.current?.signalingState !== 'closed') {
-                    pc.current?.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-                }
-            });
-        });
-        
-        const messagesQuery = query(messagesCollection, orderBy('timestamp', 'asc'));
-        const unsub3 = onSnapshot(messagesQuery, (snapshot) => {
-            const newMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
-            setMessages(newMessages);
-        });
-        
-        unsubscribers.current.push(unsub1, unsub2, unsub3);
-        
-        if (isAccepting) setIncomingCall(null);
-        return true;
-    
+
+        if (success && isAccepting) setIncomingCall(null);
+
+        return success;
+
     }, [firestore, user, setupPeerConnection, hangup, toast, cleanupCall]);
 
     const startCall = useCallback((callee: AppUser) => createCall(callee, false), [createCall]);
@@ -411,14 +406,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
     const findRandomCall = useCallback(async (interests: string[]) => {
         if (!firestore || !user) return;
         setCallState('searching');
-    
-        await setupPeerConnection();
-        if (!pc.current) {
-            setCallState('idle');
-            toast({ variant: 'destructive', title: 'Permission Denied', description: 'Microphone access is required to start a call.' });
-            return;
-        }
-    
+
         await new Promise(resolve => setTimeout(resolve, Math.random() * 1000));
     
         const roomsQuery = query(collection(firestore, 'rooms'), where('answered', '==', false), where('calleeId', '==', null));
@@ -440,16 +428,16 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         }
     
         if (roomToJoin) {
-            const joined = await joinCall(roomToJoin.id, false, true, interests);
+            const joined = await joinCall(roomToJoin.id, false, false, interests);
             if (joined) {
                 return;
             }
         }
         
         if(callStateRef.current === 'searching') {
-            await createCall(undefined, true, interests);
+            await createCall(undefined, false, interests);
         }
-    }, [firestore, user, setupPeerConnection, joinCall, createCall, toast]);
+    }, [firestore, user, joinCall, createCall]);
     
     const acceptCall = useCallback(async () => {
         if (!incomingCall) return;
