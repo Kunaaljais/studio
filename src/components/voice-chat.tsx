@@ -129,6 +129,8 @@ export function VoiceChat() {
     const isCalling = callState !== 'idle';
     const isConnected = callState === 'connected';
     const hasInterests = interests.trim().length > 0;
+    const isCountryFiltered = countryFilter !== "WW";
+    const countryName = isCountryFiltered ? countries.find(c => c.code === countryFilter)?.name : "";
     
     const renderIdleControls = () => (
         <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
@@ -215,12 +217,21 @@ export function VoiceChat() {
           {callState === 'searching' && (
              <div className="text-center">
                 <p className="text-muted-foreground">
-                    {hasInterests
-                        ? 'Searching for someone with similar interests...'
-                        : 'Searching for a random user...'}
+                    {(() => {
+                        let text = "Searching for ";
+                        if (hasInterests) {
+                            text += "someone with similar interests";
+                        } else {
+                            text += "a random user";
+                        }
+                        if (isCountryFiltered) {
+                            text += ` from ${countryName}`;
+                        }
+                        return text + "...";
+                    })()}
                 </p>
                 <p className="text-xs text-muted-foreground/80">
-                    (If none are found, we'll connect you randomly)
+                    (You'll be placed in a queue if no one is available)
                 </p>
             </div>
           )}

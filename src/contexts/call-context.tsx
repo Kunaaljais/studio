@@ -75,6 +75,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
     const callIdRef = useRef<string | null>(null);
     const startTimeRef = useRef<Date | null>(null);
     const callTypeRef = useRef<'incoming' | 'outgoing' | 'random' | null>(null);
+    const localHangupRef = useRef(false);
     
     const silentAudioContext = useRef<AudioContext | null>(null);
     const silentOscillator = useRef<OscillatorNode | null>(null);
@@ -268,7 +269,9 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
                     setCallState('connected');
                     startTimeRef.current = new Date();
                 } else if (['disconnected', 'failed', 'closed'].includes(pc.current?.connectionState || '')) {
-                    hangup();
+                    if (!localHangupRef.current) {
+                        hangup();
+                    }
                 }
             };
         } catch (error) {
@@ -442,26 +445,18 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
     
         await new Promise(resolve => setTimeout(resolve, Math.random() * 1000));
         
-        let baseQuery = query(collection(firestore, 'rooms'), where('answered', '==', false), where('calleeId', '==', null));
+        let queryToRun = query(collection(firestore, 'rooms'), where('answered', '==', false), where('calleeId', '==', null));
         
-        const countrySpecificQuery = countryCode !== 'WW' 
-            ? query(baseQuery, where('callerCountryCode', '==', countryCode))
-            : baseQuery;
+        if (countryCode !== 'WW') {
+            queryToRun = query(queryToRun, where('callerCountryCode', '==', countryCode));
+        }
             
-        const countrySnapshot = await getDocs(countrySpecificQuery);
+        const snapshot = await getDocs(queryToRun);
 
-        let availableRooms = countrySnapshot.docs
+        let availableRooms = snapshot.docs
             .map(doc => ({ id: doc.id, data: doc.data() }))
             .filter(room => room.data.callerId !== user.id);
             
-        // If no rooms in specific country, and filter was not worldwide, search worldwide
-        if (availableRooms.length === 0 && countryCode !== 'WW') {
-            const worldwideSnapshot = await getDocs(baseQuery);
-            availableRooms = worldwideSnapshot.docs
-                .map(doc => ({ id: doc.id, data: doc.data() }))
-                .filter(room => room.data.callerId !== user.id);
-        }
-
         availableRooms.sort(() => 0.5 - Math.random());
     
         let roomToJoin: {id: string; data: any} | undefined = undefined;
