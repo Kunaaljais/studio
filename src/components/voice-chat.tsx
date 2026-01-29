@@ -137,11 +137,7 @@ export function VoiceChat() {
     const renderIdleControls = () => (
         <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
             <div className="h-10 flex items-center justify-center">
-                {user && user.country && user.country !== 'Unknown' && (
-                    <p className="text-sm text-muted-foreground">
-                        Your location: {user.country} {getFlagEmoji(user.countryCode || '')}
-                    </p>
-                )}
+
             </div>
 
             <div className="flex justify-center items-start">
@@ -331,3 +327,5 @@ export function VoiceChat() {
     </>
   )
 }
+
+    
