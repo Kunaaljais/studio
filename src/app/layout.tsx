@@ -17,10 +17,10 @@ export const metadata: Metadata = {
     template: '%s | RandomTalk.online',
     default: 'RandomTalk: Voice Chat with Strangers',
   },
-  description: 'Experience the thrill of spontaneous voice conversations on RandomTalk.online. Connect with new people from around the world, practice a language, discuss hobbies, or enjoy a casual chat in a safe and anonymous environment. Start talking to strangers and make new friends today!',
+  description: 'Jump into a random voice chat with strangers on RandomTalk.online. Connect instantly for spontaneous conversations and make new friends. Try our free voice chat now!',
   openGraph: {
     title: 'RandomTalk: Voice Chat with Strangers',
-    description: 'Experience the thrill of spontaneous voice conversations on RandomTalk.online. Connect with new people from around the world, practice a language, discuss hobbies, or enjoy a casual chat in a safe and anonymous environment. Start talking to strangers and make new friends today!',
+    description: 'Jump into a random voice chat with strangers on RandomTalk.online. Connect instantly for spontaneous conversations and make new friends. Try our free voice chat now!',
     url: 'https://randomtalk.online',
     siteName: 'RandomTalk.online',
     images: [
@@ -42,9 +42,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} dark`} itemScope itemType="http://schema.org/WebSite">
       <head>
-        <meta itemProp="name" content="RandomTalk: Voice Chat with Strangers" />
-        <meta itemProp="description" content="Experience the thrill of spontaneous voice conversations on RandomTalk.online. Connect with new people from around the world, practice a language, discuss hobbies, or enjoy a casual chat in a safe and anonymous environment. Start talking to strangers and make new friends today!" />
-        <meta itemProp="image" content="https://picsum.photos/seed/randomtalk/1200/630" />
       </head>
       <body className="font-body antialiased">
         <FirebaseProvider>
