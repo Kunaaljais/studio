@@ -13,6 +13,7 @@ import {
   Phone,
   RefreshCw,
   Check,
+  MapPin,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -58,11 +59,14 @@ export function VoiceChat() {
     if (prevCallState.current === 'connected' && callState === 'idle') {
       if (!localHangupRef.current) {
         setShowDisconnectedMessage(true);
+      } else {
+        // This is a local hangup, don't show message, just reset flag.
+        localHangupRef.current = false;
       }
+
       if (autoCall) {
           handleFindCall();
       }
-      localHangupRef.current = false;
     } else if (callState !== 'idle') {
       setShowDisconnectedMessage(false);
     }
@@ -137,7 +141,12 @@ export function VoiceChat() {
     const renderIdleControls = () => (
         <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
             <div className="h-10 flex items-center justify-center">
-
+                 {user && user.country && user.country !== 'Unknown' && (
+                    <div className="text-sm text-muted-foreground flex items-center gap-1.5">
+                        <MapPin className="w-4 h-4" />
+                        Your location: {user.country} {getFlagEmoji(user.countryCode || '')}
+                    </div>
+                 )}
             </div>
 
             <div className="flex justify-center items-start">
@@ -327,5 +336,3 @@ export function VoiceChat() {
     </>
   )
 }
-
-    

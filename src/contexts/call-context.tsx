@@ -75,7 +75,6 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
     const callIdRef = useRef<string | null>(null);
     const startTimeRef = useRef<Date | null>(null);
     const callTypeRef = useRef<'incoming' | 'outgoing' | 'random' | null>(null);
-    const localHangupRef = useRef(false);
     
     const silentAudioContext = useRef<AudioContext | null>(null);
     const silentOscillator = useRef<OscillatorNode | null>(null);
@@ -269,9 +268,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
                     setCallState('connected');
                     startTimeRef.current = new Date();
                 } else if (['disconnected', 'failed', 'closed'].includes(pc.current?.connectionState || '')) {
-                    if (!localHangupRef.current) {
-                        hangup();
-                    }
+                    hangup();
                 }
             };
         } catch (error) {
@@ -467,20 +464,21 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             .map(doc => ({ id: doc.id, data: doc.data() }))
             .filter(room => room.data.callerId !== user.id);
             
-        availableRooms.sort(() => 0.5 - Math.random());
-    
-        let roomToJoin: {id: string; data: any} | undefined = undefined;
-    
         if (interests.length > 0) {
-            roomToJoin = availableRooms.find(room => room.data.callerInterests?.some((i: string) => interests.includes(i)));
+            // Prioritize rooms with matching interests
+            const interestMatches = availableRooms.filter(room => 
+                room.data.callerInterests?.some((i: string) => interests.includes(i))
+            );
+            if (interestMatches.length > 0) {
+                 availableRooms = interestMatches;
+            }
         }
         
-        if (!roomToJoin && availableRooms.length > 0) {
-            roomToJoin = availableRooms[0];
-        }
+        // Randomize the selection from the filtered (or unfiltered) list
+        availableRooms.sort(() => 0.5 - Math.random());
     
-        if (roomToJoin) {
-            const joined = await joinCall(roomToJoin.id, false, false, interests);
+        if (availableRooms.length > 0) {
+            const joined = await joinCall(availableRooms[0].id, false, false, interests);
             if (joined) {
                 return;
             }
