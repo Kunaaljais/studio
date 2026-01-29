@@ -52,9 +52,9 @@ function App() {
             </div>
             <header className="flex items-center gap-2 flex-shrink-0 mx-4">
                 <Waves className="w-8 h-8 text-primary" />
-                <h1 className="text-2xl sm:text-3xl font-bold text-primary-foreground font-headline">
+                <p className="text-2xl sm:text-3xl font-bold text-primary-foreground font-headline">
                     RandomTalk.online
-                </h1>
+                </p>
             </header>
             <div className="flex-1" />
         </div>

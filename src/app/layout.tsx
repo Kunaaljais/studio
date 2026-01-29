@@ -6,8 +6,8 @@ import { UserProvider } from '@/contexts/user-context';
 import { Analytics } from "@vercel/analytics/react";
 
 export const metadata: Metadata = {
-  title: 'RandomTalk.online',
-  description: 'Connect with random people through voice chat.',
+  title: 'RandomTalk: Voice Chat with Strangers',
+  description: 'Connect with random people through voice chat on RandomTalk.online.',
 };
 
 export default function RootLayout({
