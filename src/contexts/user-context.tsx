@@ -5,6 +5,7 @@ import { generateRandomUser } from '@/lib/data';
 import { Loader2 } from 'lucide-react';
 import { useFirestore } from '@/firebase';
 import { doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { countries } from '@/lib/countries';
 
 type AppUser = {
   id: string;
@@ -43,16 +44,18 @@ export const UserProvider = ({ children }: PropsWithChildren) => {
             let countryCode = 'XX';
 
             try {
-                // This API is being used for demonstration purposes.
-                // For production use, consider a more robust solution with rate limiting and fallbacks.
-                const response = await fetch('https://ip-api.com/json/?fields=country,countryCode');
+                // Using ipinfo.io to get geolocation data from IP address
+                const response = await fetch('https://ipinfo.io/json');
                 if (response.ok) {
                     const data = await response.json();
-                    country = data.country;
-                    countryCode = data.countryCode;
+                    if (data.country) {
+                        countryCode = data.country;
+                        const countryData = countries.find(c => c.code === countryCode);
+                        country = countryData ? countryData.name : 'Unknown';
+                    }
                 }
             } catch (error) {
-                console.warn("Could not fetch user's country. Using default.", error);
+                console.warn("Could not fetch user's country using ipinfo.io. Using default.", error);
             }
 
             const generatedUser = {
