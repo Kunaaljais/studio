@@ -20,6 +20,7 @@ import { ReportDialog } from "@/components/report-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { useCall } from "@/contexts/call-context"
+import { useUser } from "@/contexts/user-context"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -41,6 +42,7 @@ const formatTime = (seconds: number) => {
 
 export function VoiceChat() {
   const { callState, connectedUser, isMuted, timer, hangup, toggleMute, findRandomCall, sendFriendRequest } = useCall();
+  const user = useUser();
   const { toast } = useToast();
   const [isReportDialogOpen, setReportDialogOpen] = useState(false);
   const [friendRequestSent, setFriendRequestSent] = useState(false);
@@ -134,7 +136,12 @@ export function VoiceChat() {
     
     const renderIdleControls = () => (
         <div className="flex flex-col items-center justify-center text-center gap-2 w-full">
-            <div className="h-10">
+            <div className="h-10 flex items-center justify-center">
+                {user && user.country && user.country !== 'Unknown' && (
+                    <p className="text-sm text-muted-foreground">
+                        Your location: {user.country} {getFlagEmoji(user.countryCode || '')}
+                    </p>
+                )}
             </div>
 
             <div className="flex justify-center items-start">
