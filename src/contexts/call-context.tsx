@@ -329,6 +329,16 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
             if (data?.answer && pc.current && !pc.current.currentRemoteDescription) {
                 pc.current.setRemoteDescription(new RTCSessionDescription(data.answer));
             }
+            if (data?.answered && callTypeRef.current === 'random' && !connectedUser) {
+                const calleeInfo = {
+                    id: data.calleeId,
+                    name: data.calleeName,
+                    avatar: data.calleeAvatar,
+                    country: data.calleeCountry,
+                    countryCode: data.calleeCountryCode,
+                };
+                setConnectedUser(calleeInfo);
+            }
         });
         
         const unsub2 = onSnapshot(collection(callDocRef, 'calleeCandidates'), snapshot => {
@@ -346,7 +356,7 @@ export const CallProvider = ({ user, children }: PropsWithChildren<{ user: AppUs
         });
 
         unsubscribers.current.push(unsub1, unsub2, unsub3);
-    }, [firestore, user, setupPeerConnection, hangup, toast]);
+    }, [firestore, user, setupPeerConnection, hangup, toast, connectedUser]);
 
     const joinCall = useCallback(async (roomId: string, isAccepting: boolean, setupDone = false, interests: string[] = []): Promise<boolean> => {
         if (!firestore || !user) return false;
