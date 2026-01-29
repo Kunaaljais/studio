@@ -13,7 +13,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'RandomTalk: Voice Chat with Strangers',
+  title: {
+    template: '%s | RandomTalk.online',
+    default: 'RandomTalk: Voice Chat with Strangers',
+  },
   description: 'Experience the thrill of spontaneous voice conversations on RandomTalk.online. Connect with new people from around the world, practice a language, discuss hobbies, or enjoy a casual chat in a safe and anonymous environment. Start talking to strangers and make new friends today!',
   openGraph: {
     title: 'RandomTalk: Voice Chat with Strangers',
@@ -37,8 +40,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} dark`}>
-      <head />
+    <html lang="en" className={`${inter.variable} dark`} itemScope itemType="http://schema.org/WebSite">
+      <head>
+        <meta itemProp="name" content="RandomTalk: Voice Chat with Strangers" />
+        <meta itemProp="description" content="Experience the thrill of spontaneous voice conversations on RandomTalk.online. Connect with new people from around the world, practice a language, discuss hobbies, or enjoy a casual chat in a safe and anonymous environment. Start talking to strangers and make new friends today!" />
+        <meta itemProp="image" content="https://picsum.photos/seed/randomtalk/1200/630" />
+      </head>
       <body className="font-body antialiased">
         <FirebaseProvider>
           <UserProvider>
